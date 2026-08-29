@@ -1,5 +1,5 @@
 # Use official Python runtime as base image
-FROM mcr.microsoft.com/devcontainers/python:3.11-bullseye
+FROM mcr.microsoft.com/devcontainers/python:3.14-bookworm
 
 # Install system dependencies for audio processing
 RUN apt-get update && apt-get install -y \
