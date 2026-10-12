@@ -1,12 +1,12 @@
 {
   "name": "Instrument Isolation App",
-  "image": "mcr.microsoft.com/devcontainers/python:3.11",
+  "image": "mcr.microsoft.com/devcontainers/python:3.12",
   "features": {
     "ghcr.io/devcontainers/features/git:1": {},
     "ghcr.io/devcontainers/features/github-cli:1": {}
   },
   "buildArg": {
-    "VARIANT": "3.11"
+    "VARIANT": "3.12"
   },
   "customizations": {
     "vscode": {
