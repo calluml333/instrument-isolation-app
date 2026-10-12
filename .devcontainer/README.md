@@ -31,14 +31,14 @@ docker-compose -f .devcontainer/docker-compose.yml exec dev python scripts/gener
 ### Option 3: Local Development (Without Container)
 
 ```bash
-poetry env use python3.14
+poetry env use python3.12
 poetry install --with dev --with demo
 source .venv/bin/activate
 ```
 
 ## What's Included
 
-- **Python 3.14**: Latest stable Python
+- **Python 3.12**: Project-wide Python version (supported by the full ML stack)
 - **PyTorch**: Deep learning framework (CPU by default, GPU optional)
 - **Audio Libraries**: libsndfile, ffmpeg, sox
 - **Development Tools**: Git, vim, curl, wget
