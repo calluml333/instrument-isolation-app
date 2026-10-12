@@ -6,6 +6,13 @@
 | **Owner** | Callum Little |
 | **Last updated** | 2026-10-12 |
 | **Targets** | VST3 (Reaper), AU (Logic Pro), plus a standalone Python CLI |
+| **Python** | 3.12 |
+
+> **Portfolio project, not for sale.** This project is non-commercial. It is
+> built as a portfolio piece and will not be sold or distributed commercially.
+> This matters in practice: the training datasets (MUSDB18-HQ, MoisesDB) are
+> licensed for non-commercial research use only, so neither the fine-tuned
+> model nor anything that ships it may be used commercially.
 
 ---
 
@@ -19,7 +26,7 @@ produces one audio file per instrument group:
 | `drums` | Kit, percussion |
 | `bass` | Bass guitar, synth bass |
 | `guitar` | Electric and acoustic guitars |
-| `keys` | Piano, electric piano, organ, synth pads/leads |
+| `keys` | All keyboard and synth parts: piano, electric piano, organ, synth pads, synth leads |
 | `vocals` | Lead and backing vocals |
 | `other` | Residual: everything not captured above (strings, brass, FX…) |
 
@@ -56,7 +63,8 @@ The project has two halves that share one model:
   be tested in v1.
 - Splitting stems further, e.g. lead vs backing vocals or kick vs snare.
 - Training a model from scratch.
-- Commercial distribution. The dataset licenses rule this out for now (§4.3).
+- Commercial distribution. This is a portfolio project and will not be sold.
+  The dataset licenses rule it out anyway (§4.3).
 
 ---
 
@@ -144,13 +152,14 @@ Training tricks that keep compute low:
 
 **Stem mapping.** A config file (`configs/stem_map.yaml`) maps each dataset's
 instrument labels to our six stems. For example, MoisesDB `piano` + `keyboards`
-+ `synth (pads/leads)` → `keys`, and `bowed strings`/`wind` → `other`. All
++ `organ` + `synth` (pads and leads) → `keys`, and `bowed strings`/`wind` → `other`. All
 datasets go through this one mapping layer.
 
 **Licensing consequence.** MUSDB18 and MoisesDB are non-commercial. A model
-fine-tuned on them is fine for a portfolio or personal project, but **cannot be
-sold**. Going commercial would need cleared data, such as Slakh or licensed
-multitracks. This is tracked in Open Questions.
+fine-tuned on them is fine for this portfolio project but **cannot be sold**.
+That is acceptable because the project is non-commercial (see the note at the
+top). If that ever changes, the model would need retraining on cleared data,
+such as Slakh or licensed multitracks.
 
 **Splits.** Split by song, never by segment. Keep the official MUSDB18 test
 set untouched for reporting.
@@ -179,6 +188,10 @@ don't lose work.
 ---
 
 ## 5. ML pipeline (Python) — functional requirements
+
+Python version: **3.12** for the whole ML stack (host venv, devcontainer and
+CI). It is new enough for current PyTorch and old enough that `demucs`,
+`torchaudio`, `museval` and `onnx` all have wheels for it.
 
 ### 5.1 Repository layout
 ```
@@ -362,26 +375,26 @@ time.
 | `keys` is ill-defined (piano vs synth vs pads overlap with `other` and `guitar`) | Low keys SDR, confusing results | Clear stem map; widen the target; keep the `other` residual; judge by ear as well as by SDR |
 | HTDemucs ONNX export is fragile (complex STFT, dynamic shapes) | Phase 3 slips | Keep STFT outside the graph (R13); fixed segment length; fall back to Core ML or LibTorch |
 | Free-tier GPU limits | Slow iteration | Fine-tune small parts of the model; MPS locally; resumable checkpoints |
-| Dataset licenses are non-commercial | Can't sell it | Accept for a portfolio project; record a commercial path in Open Questions |
+| Dataset licenses are non-commercial | Can't sell it | Accepted: this is a non-commercial portfolio project |
 | ARA2 integration is complex | v1.x slips | Ship Capture mode first; ARA is additive |
 | Logic doesn't support multi-out for effects | Mode C limited to Reaper | Use export/drag-out in Logic |
 | Large model file inside the plugin bundle | Installer size, load time | FP16 weights; load lazily on first Separate |
 
 ---
 
-## 11. Open questions
+## 11. Decisions and open questions
 
-1. **Stem definition:** should `keys` include synth leads, or only
-   piano/organ/pads? This decides the stem map.
-2. **Commercial ambitions:** is this strictly a portfolio project? If not, the
-   choice of datasets changes.
-3. **Python version:** the `feature/cl-DevContainerConfig` branch bumps the
-   devcontainer to Python 3.14, but `main` is on 3.11. Check that
-   `demucs`, `torchaudio`, `museval` and `onnx` all have wheels for 3.14
-   before standardising. 3.11 or 3.12 is the safer choice for the ML stack.
-4. **Windows support:** worth planning for in v1 (ORT DirectML EP), or leave
+### Decided (2026-10-12)
+- **`keys` stem:** includes everything keyboard- or synth-based: piano,
+  electric piano, organ, synth pads and synth leads.
+- **Commercial use:** none. This is a portfolio piece and will not be sold.
+  Non-commercial datasets are therefore acceptable.
+- **Python version:** 3.12.
+
+### Open
+1. **Windows support:** worth planning for in v1 (ORT DirectML EP), or leave
    it as stretch?
-5. **Inference runtime:** ONNX Runtime vs Core ML. Decide from the Phase 3
+2. **Inference runtime:** ONNX Runtime vs Core ML. Decide from the Phase 3
    benchmarks.
 
 ---
