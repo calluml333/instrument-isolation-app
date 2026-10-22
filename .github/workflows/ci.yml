@@ -1,0 +1,74 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    name: Docs (markdown lint + links)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Lint Markdown
+        uses: DavidAnson/markdownlint-cli2-action@v24
+        with:
+          globs: "**/*.md"
+
+      - name: Check links
+        uses: lycheeverse/lychee-action@v2
+        with:
+          args: --no-progress --hidden --max-retries 3 --accept 200,429 "**/*.md"
+          fail: true
+
+  python:
+    name: Python (lint, format, tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # The Python package doesn't exist yet (roadmap Phase 0). Until a
+      # pyproject.toml lands, this job passes without running anything, then
+      # starts enforcing automatically.
+      - name: Detect Python project
+        id: detect
+        run: |
+          if [ -f pyproject.toml ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::No pyproject.toml yet; skipping Python checks."
+          fi
+
+      - uses: actions/setup-python@v7
+        if: steps.detect.outputs.present == 'true'
+        with:
+          python-version: "3.12"
+
+      - name: Install Poetry and dependencies
+        if: steps.detect.outputs.present == 'true'
+        run: |
+          pipx install poetry
+          poetry config virtualenvs.in-project true
+          poetry install --no-interaction --with dev
+
+      - name: Ruff lint
+        if: steps.detect.outputs.present == 'true'
+        run: poetry run ruff check .
+
+      - name: Ruff format check
+        if: steps.detect.outputs.present == 'true'
+        run: poetry run ruff format --check .
+
+      - name: Pytest
+        if: steps.detect.outputs.present == 'true'
+        run: poetry run pytest

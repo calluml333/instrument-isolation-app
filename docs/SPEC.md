@@ -63,6 +63,7 @@ stretch goal (Appendix A).
 ## 2. Goals and non-goals
 
 ### Goals
+
 - G1. Separate a stereo file (WAV/AIFF/FLAC/MP3, 44.1/48 kHz) into the six stems
   above.
 - G2. A **local web app** that makes it easy to get stems into Reaper or Logic:
@@ -77,6 +78,7 @@ stretch goal (Appendix A).
 - G6. **Local mode is fully offline.** No audio leaves the machine.
 
 ### Non-goals (v1)
+
 - Real-time, zero-latency separation of live input.
 - A DAW plugin (VST3/AU). Deferred to stretch, see Appendix A.
 - A hosted service for full-length songs. GPU hosting costs money, and storing
@@ -98,12 +100,15 @@ stems from a bounced track.
 to hear what it does in under a minute.
 
 ### W1: CLI (developer / batch)
-```
+
+```bash
 isolate separate song.wav --out stems/ --stems drums,bass,guitar,keys,vocals,other
 ```
+
 Writes `stems/song/<stem>.wav`, the same length and sample rate as the input.
 
 ### W2: Local app (main workflow)
+
 1. The user runs `isolate app`. A browser tab opens at `http://127.0.0.1:7860`.
 2. They drag in a song (or a bounce from their DAW).
 3. They pick a quality preset (**Fast** / **Best**) and click **Separate**.
@@ -116,6 +121,7 @@ Writes `stems/song/<stem>.wav`, the same length and sample rate as the input.
    start point lines them up exactly.
 
 ### W3: Public demo
+
 1. The visitor opens the Spaces link.
 2. They upload a song (or pick a built-in example clip), choose a 30-second
    section, and click **Separate**.
@@ -161,6 +167,7 @@ Order of attempts, from cheapest to most expensive:
    partial-unfreezing overfits or doesn't fit in memory.
 
 Training tricks that keep compute low:
+
 - Short segments (4–6 s), batch size 4–8, gradient accumulation.
 - Mixed precision (bf16 on MPS/CUDA where it is stable).
 - **On-the-fly remixing augmentation:** build new mixtures each step by
@@ -181,9 +188,9 @@ Training tricks that keep compute low:
 | MedleyDB 2.0 | Multitrack, many instruments | ~200 tracks | CC BY-NC-SA | Optional extra data or held-out eval |
 
 **Stem mapping.** A config file (`configs/stem_map.yaml`) maps each dataset's
-instrument labels to our six stems. For example, MoisesDB `piano` + `keyboards`
-+ `organ` + `synth` (pads and leads) → `keys`, and `bowed strings`/`wind` →
-`other`. All datasets go through this one mapping layer.
+instrument labels to our six stems. For example, MoisesDB `piano`,
+`keyboards`, `organ` and `synth` (pads and leads) all map to `keys`, and
+`bowed strings`/`wind` map to `other`. All datasets go through this one mapping layer.
 
 **Licensing consequence.** MUSDB18 and MoisesDB are non-commercial. A model
 fine-tuned on them is fine for this portfolio project but **cannot be sold**.
@@ -227,7 +234,8 @@ Spaces deployment). It is new enough for current PyTorch and old enough that
 `demucs`, `torchaudio`, `museval` and `gradio` all have wheels for it.
 
 ### 5.1 Repository layout
-```
+
+```text
 src/isolate/
   core/          # separation engine: model loading, chunking, overlap-add,
                  #   resampling, stem writing; progress + cancel hooks
@@ -249,6 +257,7 @@ This keeps the deployed demo small and lets the UI be swapped out later
 without touching the engine.
 
 ### 5.2 Inference requirements
+
 - R1. Accept mono or stereo input at any common sample rate. Resample to
   44.1 kHz internally, and resample the outputs back to the input rate.
 - R2. Process long files in **overlapping chunks** (e.g. 7.8 s with 25%
@@ -264,6 +273,7 @@ without touching the engine.
   stop a job cleanly.
 
 ### 5.3 Training requirements
+
 - R8. Config-driven (which layers to freeze, LR per group, segment length,
   augmentation).
 - R9. Checkpoints can be resumed. Log to TensorBoard or W&B.
@@ -272,12 +282,14 @@ without touching the engine.
 - R11. Results are reproducible from a seed plus the config.
 
 ### 5.4 Mixture consistency
+
 - R12. Optional **residual projection**: after inference, spread the error
   `mix − Σstems` across the stems (or put it all into `other`), so the stems
   sum exactly to the input. Producers expect this, because muting nothing
   should give back the original mix. On by default in the app.
 
 ### 5.5 Model packaging
+
 - R13. Fine-tuned weights are published to a **Hugging Face Hub model repo**
   with a model card (training data, non-commercial license, eval table).
   The app downloads them on first run, checks the checksum, and caches them.
@@ -291,7 +303,7 @@ without touching the engine.
 
 ### 6.1 Architecture
 
-```
+```text
  Browser UI ──► App layer (Gradio) ──► Job runner ──► isolate.core ──► model
                      │                 (1 worker,         │
                      │                  queue, cancel)    ▼
@@ -317,6 +329,7 @@ synchronised multitrack mixer with mute/solo. It is more work, so it is kept
 for v1.x if Gradio's components become limiting (§11).
 
 ### 6.2 Functional requirements
+
 - A1. Upload by drag-and-drop or file picker. WAV, AIFF, FLAC and MP3.
   Unsupported or corrupt files get a clear error message.
 - A2. Quality preset: **Fast** (shifts=0) / **Best** (shifts=2).
@@ -334,6 +347,7 @@ for v1.x if Gradio's components become limiting (§11).
   CC-licensed recordings), so demo visitors can try it without their own file.
 
 ### 6.3 Local mode
+
 - Launched with `isolate app`. Opens the browser automatically.
 - **Binds to `127.0.0.1` only** by default, so it isn't reachable from the
   network. `--host` is needed to override it.
@@ -343,6 +357,7 @@ for v1.x if Gradio's components become limiting (§11).
   (default 5 GB, oldest removed first).
 
 ### 6.4 Demo mode (Hugging Face Spaces)
+
 - Runs on the **free CPU tier** (2 vCPU, 16 GB RAM).
 - Limits, all configurable:
   - Max upload size 20 MB.
@@ -361,6 +376,7 @@ for v1.x if Gradio's components become limiting (§11).
   load can take about a minute.
 
 ### 6.5 Non-functional requirements
+
 - N1. **Local speed:** a 3-minute stereo song separates in **≤ 60 s** on the
   M4 Pro (MPS) with the Fast preset. Stretch: ≤ 30 s.
 - N2. **Demo speed:** a 30-second clip separates in **≤ 90 s** on the Spaces
@@ -451,6 +467,7 @@ regression and end-to-end jobs load the real weights.
 ## 11. Decisions and open questions
 
 ### Decided (2026-10-12)
+
 - **`keys` stem:** includes everything keyboard- or synth-based: piano,
   electric piano, organ, synth pads and synth leads.
 - **Commercial use:** none. This is a portfolio piece and will not be sold.
@@ -460,6 +477,7 @@ regression and end-to-end jobs load the real weights.
   The plugin is deferred to stretch (Appendix A).
 
 ### Open
+
 1. **UI framework beyond v1:** stay on Gradio (with custom components) or
    move to FastAPI + a custom frontend for the Phase 5 mixer? Decide after
    Phase 2, once Gradio's limits are clearer.
@@ -471,6 +489,7 @@ regression and end-to-end jobs load the real weights.
 ---
 
 ## 12. References
+
 - Rouard, Massa, Défossez, *Hybrid Transformers for Music Source Separation*
   (HTDemucs), ICASSP 2023 — `github.com/facebookresearch/demucs`
 - Lu et al., *Music Source Separation with Band-Split RoPE Transformer*
@@ -506,6 +525,7 @@ which is why the app came first.
 | **Multi-out** | ARA or capture | 6 stereo output buses, one per stem | ✅ | ⚠️ Logic only allows multi-out for *instrument* AUs, not effects |
 
 ### A.3 Stack, if built
+
 - **JUCE 8** (C++20, CMake): one codebase for VST3, AU and Standalone, with
   ARA support.
 - **ONNX Runtime** (C++) with the CoreML execution provider, or a direct
@@ -518,6 +538,7 @@ which is why the app came first.
   signed and notarized installer (needs an Apple Developer ID).
 
 ### A.4 Cheaper step first
+
 A **Reaper ReaScript** (Lua) action that renders the selected item, calls
 `isolate separate`, and imports the stems as new tracks. This gives one-click
 DAW integration for Reaper with no C++ (roadmap Phase 6).
