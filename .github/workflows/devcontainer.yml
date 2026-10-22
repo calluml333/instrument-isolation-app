@@ -1,0 +1,55 @@
+name: Dev container
+
+# Builds the dev container and runs the checks inside it, but only when
+# something that affects the container changes.
+on:
+  pull_request:
+    paths:
+      - ".devcontainer/**"
+      - "pyproject.toml"
+      - "poetry.lock"
+      - "poetry.toml"
+      - ".github/workflows/devcontainer.yml"
+  push:
+    branches: [main]
+    paths:
+      - ".devcontainer/**"
+      - "pyproject.toml"
+      - "poetry.lock"
+      - "poetry.toml"
+      - ".github/workflows/devcontainer.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DEVCONTAINER_CLI: "@devcontainers/cli@0.89.0"
+
+jobs:
+  build:
+    name: Build and test in dev container
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      # devcontainer.json bind-mounts these from a Mac host (Docker Desktop's
+      # SSH agent socket and ~/.cache). They don't exist on a Linux runner.
+      - name: Create mount sources
+        run: |
+          mkdir -p "$HOME/.cache"
+          sudo mkdir -p /run/host-services
+          sudo touch /run/host-services/ssh-auth.sock
+
+      - name: Build and start the dev container
+        run: npx --yes "$DEVCONTAINER_CLI" up --workspace-folder .
+
+      - name: isolate --version
+        run: npx --yes "$DEVCONTAINER_CLI" exec --workspace-folder . isolate --version
+
+      - name: Pytest
+        run: npx --yes "$DEVCONTAINER_CLI" exec --workspace-folder . pytest

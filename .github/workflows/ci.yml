@@ -33,42 +33,33 @@ jobs:
   python:
     name: Python (lint, format, tests)
     runs-on: ubuntu-latest
+    env:
+      # Keep in sync with .devcontainer/post-create.sh.
+      POETRY_VERSION: "2.5.1"
     steps:
       - uses: actions/checkout@v7
 
-      # The Python package doesn't exist yet (roadmap Phase 0). Until a
-      # pyproject.toml lands, this job passes without running anything, then
-      # starts enforcing automatically.
-      - name: Detect Python project
-        id: detect
-        run: |
-          if [ -f pyproject.toml ]; then
-            echo "present=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "present=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::No pyproject.toml yet; skipping Python checks."
-          fi
+      # Poetry must be on PATH before setup-python so it can cache the
+      # in-project .venv (poetry.toml), keyed on poetry.lock.
+      - name: Install Poetry
+        run: pipx install "poetry==$POETRY_VERSION"
 
       - uses: actions/setup-python@v7
-        if: steps.detect.outputs.present == 'true'
         with:
           python-version: "3.12"
+          cache: poetry
 
-      - name: Install Poetry and dependencies
-        if: steps.detect.outputs.present == 'true'
-        run: |
-          pipx install poetry
-          poetry config virtualenvs.in-project true
-          poetry install --no-interaction --with dev
+      - name: Check lock file
+        run: poetry check --lock
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --with dev
 
       - name: Ruff lint
-        if: steps.detect.outputs.present == 'true'
         run: poetry run ruff check .
 
       - name: Ruff format check
-        if: steps.detect.outputs.present == 'true'
         run: poetry run ruff format --check .
 
       - name: Pytest
-        if: steps.detect.outputs.present == 'true'
         run: poetry run pytest
