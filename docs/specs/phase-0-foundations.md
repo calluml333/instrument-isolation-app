@@ -46,9 +46,9 @@ in the dev container.
 - Forwarding the app's port 7860 from the container: Phase 2, when the app
   exists.
 - Licence check for RoFormer checkpoints: Phase 7, when one is considered.
-- Dependabot for Python dependencies, and the drift between
-  `.devcontainer/Dockerfile` / `docker-compose.yml` and `devcontainer.json`
-  (risk R6).
+- Dependabot for Python dependencies.
+- The drift between `.devcontainer/Dockerfile` / `docker-compose.yml` and
+  `devcontainer.json` (risk R6): resolved after Phase 0 by deleting both files.
 
 ## 3. Requirements and acceptance criteria
 
@@ -112,7 +112,7 @@ in the dev container.
 | R3 | `post-create.sh` fetches `api.github.com/meta` and installs deps, so the dev container workflow depends on the network and takes a few minutes. | Slow or flaky job. | Path filter keeps it off most PRs. Retry once on failure if it proves flaky. |
 | R4 | Import name `isolate` clashes with fal-ai's `isolate` package if both are installed in one environment. | Confusing import errors. | Distinct distribution name (P0-D2); the project never installs fal's package. |
 | R5 | CPU-only inference (P0-D12). | Local separation is slower than on MPS; the old N1 target (≤ 60 s) is likely out of reach. | N1 target re-set from the Phase 1 measurement; speed work (SPEC §4.3) now benefits local use too. |
-| R6 | `.devcontainer/Dockerfile` and `docker-compose.yml` are not used by `devcontainer.json`, install unpinned Poetry and CPU torch, and will drift. | Option 3 in the container README behaves differently. | Out of scope here. Proposed follow-up: delete them or make `devcontainer.json` build from the Dockerfile. |
+| R6 | `.devcontainer/Dockerfile` and `docker-compose.yml` are not used by `devcontainer.json`, install unpinned Poetry and CPU torch, and will drift. | Option 3 in the container README behaves differently. | **Resolved** after Phase 0 (`feature/cl-DevContainerCleanup`): both files and README Option 3 deleted, so `devcontainer.json` is the only container definition. |
 | R7 | The local app (Phase 2) runs in the container, so it can't open the host browser, "show in Finder" (A7) is impossible, and binding to `127.0.0.1` inside the container would make it unreachable. | W2 changes slightly. | SPEC §6.3 and A7 updated: print the URL, publish the port on the host's loopback only, export to a bind-mounted host folder. Designed in Phase 2. |
 
 ### Open questions

@@ -33,19 +33,6 @@ npx @devcontainers/cli exec --workspace-folder . bash
 
 `exec` also runs single commands, e.g. `... exec --workspace-folder . git status`.
 
-## Option 3: Docker Compose
-
-Uses [Dockerfile](Dockerfile), which also installs CPU-only PyTorch into the
-image. It doesn't include the git/SSH/`gh` setup below.
-
-```bash
-docker compose -f .devcontainer/docker-compose.yml up -d --build
-```
-
-```bash
-docker compose -f .devcontainer/docker-compose.yml exec dev bash
-```
-
 ## Git and GitHub inside the container
 
 Set up automatically on container creation by
