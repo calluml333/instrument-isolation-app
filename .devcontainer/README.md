@@ -1,9 +1,9 @@
 # Dev Container Setup
 
-The dev container is for **linting, tests, data prep, git and `gh`**, run the
-same way CI runs them. Anything that needs the GPU (fine-tuning, running the
-app at full speed) must run **natively on the Mac**, because Docker on macOS
-cannot access the Apple GPU (see [docs/SPEC.md](../docs/SPEC.md) §4.4).
+**Everything runs in the dev container:** linting, tests, evaluations, the
+app, git and `gh`, the same way CI runs them. Nothing is installed natively on
+the host. Docker on macOS cannot access the Apple GPU, so everything runs on
+CPU (see [docs/SPEC.md](../docs/SPEC.md) §4.4).
 
 ## Prerequisites
 
@@ -72,27 +72,33 @@ git config user.email && ssh -T git@github.com; gh auth status
 
 ## What's included
 
-- **Python 3.12** and **Poetry**
+- **Python 3.12** and **Poetry** (pinned, same version as CI)
+- **Node.js**, for `markdownlint-cli2`
 - **Git** and the **GitHub CLI**
 - **VS Code extensions:** Python, Pylance, debugpy, Ruff (formatter and
   linter), GitLens, Jupyter, markdownlint, Claude Code
-- **Project dependencies:** installed with `poetry install --with dev` once
-  `pyproject.toml` exists (roadmap Phase 0). Until then the step is skipped.
+- **Project dependencies:** installed with `poetry install --with dev` into
+  the in-project `.venv`, which is on `PATH`, so `isolate`, `ruff` and
+  `pytest` work without `poetry run`.
 
 ## Common commands
 
 These match the checks in [CI](../.github/workflows/ci.yml):
 
 ```bash
-poetry run ruff check .
+ruff check .
 ```
 
 ```bash
-poetry run ruff format --check .
+ruff format --check .
 ```
 
 ```bash
-poetry run pytest
+pytest
+```
+
+```bash
+poetry check --lock
 ```
 
 ```bash
@@ -111,6 +117,10 @@ npx markdownlint-cli2 "**/*.md"
 
 **Commits have the wrong author:** set your identity on the host, then
 rebuild the container.
+
+**git fails with "trying to write ref … with nonexistent object":** a brief
+file-sync delay on the workspace bind mount. Retry the command; `git fsck`
+confirms nothing is corrupted.
 
 **Container build fails:**
 

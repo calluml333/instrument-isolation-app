@@ -2,11 +2,12 @@
 
 | | |
 |---|---|
-| **Status** | Draft v0.3 |
+| **Status** | Draft v0.4 |
 | **Owner** | Callum Little |
 | **Last updated** | 2026-10-22 |
-| **Targets** | Local web app (macOS first), public demo on Hugging Face Spaces, Python CLI |
+| **Targets** | Local web app (runs in Docker), public demo on Hugging Face Spaces, Python CLI |
 | **Python** | 3.12 |
+| **Runtime** | Docker only: nothing runs natively on the host (§4.4) |
 | **Models** | Pretrained only (no training or fine-tuning) |
 
 > **Portfolio project, not for sale.** This project is non-commercial. It is
@@ -46,7 +47,7 @@ library:
    pretrained models behind one interface, combines them (§4.2), and handles
    chunking, resampling and mixture consistency.
 2. **Web app:** a browser UI over the core library. It runs in two modes:
-   - **Local:** on the user's own machine, full-length songs, GPU-accelerated,
+   - **Local:** on the user's own machine (in Docker, CPU), full-length songs,
      nothing leaves the machine. This is the "real" app.
    - **Demo:** hosted publicly on Hugging Face Spaces, with limits (short
      clips, CPU only). This is the portfolio showcase.
@@ -125,7 +126,8 @@ measured in §8.
 
 ### W2: Local app (main workflow)
 
-1. The user runs `isolate app`. A browser tab opens at `http://127.0.0.1:7860`.
+1. The user runs `isolate app` in the dev container and opens
+   `http://127.0.0.1:7860` in their browser.
 2. They drag in a song (or a bounce from their DAW).
 3. They pick a quality preset (**Fast** / **Best**) and click **Separate**.
    Progress is shown, and they can cancel.
@@ -152,9 +154,9 @@ measured in §8.
 
 | Model | Stems | License (code / weights) | Notes |
 |---|---|---|---|
-| **HTDemucs-6s** (Meta, `demucs` v4) | drums, bass, vocals, guitar, piano, other | MIT / verify | The only widely available model with guitar and piano stems. Its piano stem is the weakest. |
-| **HTDemucs-ft** | drums, bass, vocals, other | MIT / verify | A bag of 4 fine-tuned models, one per stem. Best Demucs quality on the 4 core stems, but about 4× slower. |
-| HTDemucs (4s) | drums, bass, vocals, other | MIT / verify | Faster than `-ft`, slightly lower quality. |
+| **HTDemucs-6s** (Meta, `demucs` v4) | drums, bass, vocals, guitar, piano, other | MIT / research use only (`docs/models.md`) | The only widely available model with guitar and piano stems. Its piano stem is the weakest. |
+| **HTDemucs-ft** | drums, bass, vocals, other | MIT / research use only (`docs/models.md`) | A bag of 4 fine-tuned models, one per stem. Best Demucs quality on the 4 core stems, but about 4× slower. |
+| HTDemucs (4s) | drums, bass, vocals, other | MIT / research use only (`docs/models.md`) | Faster than `-ft`, slightly lower quality. |
 | BS-RoFormer / Mel-RoFormer | Usually vocals or 4s (community checkpoints) | Code MIT; **weights vary** | State of the art on vocals. Many checkpoints have unclear licenses, so only use ones with a clear license. |
 
 **License check (Phase 0):** confirm the license of each set of pretrained
@@ -202,18 +204,23 @@ its speed gain are both reported, and the trade-off is worth it.
 
 ### 4.4 Compute
 
-The dev machine is an **Apple M4 Pro**. Inference runs on PyTorch's **MPS**
-backend locally, and on CPU in CI and on the demo.
+The dev machine is an **Apple M4 Pro**. **Everything runs in Docker** (the
+dev container): tests, linting, git and `gh`, evaluations and the local app.
+Nothing is installed or run natively on the host apart from Docker itself and
+the tools that start the container (VS Code or the Dev Containers CLI).
 
-⚠️ **Docker on macOS cannot access the Apple GPU.** The devcontainer is
-CPU-only and fits linting, tests and short CPU runs. Running the local app or
-evaluations at full speed has to happen **natively** (Poetry venv on the host).
+⚠️ **Docker on macOS cannot access the Apple GPU**, so all inference runs on
+**CPU**: locally in the container, in CI and on the demo. This is a deliberate
+trade of speed for a reproducible, host-independent setup (decided
+2026-10-22). It makes the speed work in §4.3 matter for the local app too, not
+only the demo. The device selection in R6 still supports `mps`/`cuda` so a
+native or GPU setup can be added later without code changes.
 
 ---
 
 ## 5. Core library — requirements
 
-Python version: **3.12** for everything (host venv, devcontainer, CI and the
+Python version: **3.12** for everything (devcontainer, CI and the
 Spaces deployment). It is new enough for current PyTorch and old enough that
 `demucs`, `torchaudio`, `museval` and `gradio` all have wheels for it.
 
@@ -256,9 +263,10 @@ the engine.
 ### 5.3 Model management
 
 - R8. Weights are downloaded on first use from the URL in the model registry
-  (M4), verified against a checksum, and cached
-  (`~/Library/Caches/isolate/models/` on macOS). No weights are committed to
-  the repo.
+  (M4), verified against a checksum, and cached in
+  `~/.cache/isolate/models/`. The dev container bind-mounts the host's
+  `~/.cache`, so downloads survive container rebuilds. No weights are
+  committed to the repo.
 - R9. `isolate models list` shows the available models and ensembles, their
   stems, license and whether they're downloaded. `isolate models download
   <name>` fetches one ahead of time (e.g. for offline use or the demo build).
@@ -314,20 +322,25 @@ for later if Gradio's components become limiting (§11).
   mix for A/B comparison.
 - A6. **Download all** as a ZIP. Files are named `<song> - <stem>.wav`, so
   they sort together and are clear once dropped into a DAW.
-- A7. Local mode only: **Export to folder** (default
-  `~/Music/Stems/<song>/`) and a button to show that folder in Finder.
+- A7. Local mode only: **Export to folder**, written to a host folder that is
+  bind-mounted into the container (default host path
+  `~/Music/Stems/<song>/`). The UI shows the host path. A "show in Finder"
+  button isn't possible from inside Docker (§4.4).
 - A8. Shows which model and preset produced the stems.
 - A9. Built-in example clips (licensed for reuse, e.g. CC-licensed
   recordings), so demo visitors can try it without their own file.
 
 ### 6.3 Local mode
 
-- Launched with `isolate app`. Opens the browser automatically.
-- **Binds to `127.0.0.1` only** by default, so it isn't reachable from the
-  network. `--host` is needed to override it.
+- Launched with `isolate app` inside the dev container. It prints the URL;
+  the container can't open the host's browser.
+- **Reachable from the host's `127.0.0.1` only.** Inside the container the
+  server has to listen on `0.0.0.0` for port forwarding to work, so the
+  restriction is enforced by publishing port 7860 on the host's loopback
+  interface only, never on all interfaces.
 - No file-length limit, beyond a warning for very long files (> 20 min).
-- Uses MPS on Apple Silicon automatically.
-- Cache is stored in `~/Library/Caches/isolate/`, with a size cap
+- Runs on CPU (§4.4).
+- Cache is stored in `~/.cache/isolate/`, with a size cap
   (default 5 GB, oldest removed first).
 
 ### 6.4 Demo mode (Hugging Face Spaces)
@@ -352,8 +365,10 @@ for later if Gradio's components become limiting (§11).
 
 ### 6.5 Non-functional requirements
 
-- N1. **Local speed:** a 3-minute stereo song separates in **≤ 60 s** on the
-  M4 Pro (MPS) with the Fast preset. Stretch: ≤ 30 s.
+- N1. **Local speed:** a 3-minute stereo song with the Fast preset, on CPU in
+  the dev container on the M4 Pro. The target is set from the Phase 1
+  baseline measurement: the original ≤ 60 s target assumed the GPU (MPS),
+  which Docker can't use (§4.4).
 - N2. **Demo speed:** a 30-second clip separates in **≤ 90 s** on the Spaces
   free CPU tier.
 - N3. **Memory:** peak RAM ≤ 4 GB during separation, whatever the song length
@@ -375,13 +390,13 @@ product that already works.
 
 | Phase | Deliverable | Exit criteria |
 |---|---|---|
-| **0. Foundations** | Python 3.12 package skeleton, Poetry deps, CI (lint + tests + devcontainer build), host Python 3.12 setup, model license check (`docs/models.md`) | `pytest` green in CI; `isolate --version` works in the container and natively |
-| **1. Baseline** | Backend interface + registry (M1, M4); `htdemucs_6s` backend; `isolate.core` engine; `isolate separate` CLI; evaluation harness on MUSDB18 samples (§8) | Baseline results table (§8); N1 speed measured |
+| **0. Foundations** | Python 3.12 package skeleton, Poetry deps, CI (lint + tests + devcontainer build), model license check (`docs/models.md`) | `pytest` green in CI; `isolate --version` works in the dev container |
+| **1. Baseline** | Backend interface + registry (M1, M4); `htdemucs_6s` backend; `isolate.core` engine; `isolate separate` CLI; evaluation harness on MUSDB18 samples (§8); coverage gate and type checking in CI | Baseline results table (§8); N1 speed measured and its target set |
 | **2. Local app v1** | Gradio app in local mode: A1–A8 | Full W2 workflow works, ending with stems in both Reaper and Logic |
 | **3. Model comparison** | `htdemucs`, `htdemucs_ft` and ensemble backends (M2); comparison report; default chosen per M3 | Ensemble beats `htdemucs_6s` alone on the core stems, or the report shows why it doesn't; Fast/Best presets set from the results |
 | **4. Performance** | Quantisation and export experiments (§4.3); benchmark report | N2 met on CPU with a quality cost that's reported and accepted |
 | **5. Public demo** | Demo mode (§6.4) on Hugging Face Spaces; example clips; CI deploy; README with link, results and screenshots | Link works from a fresh browser; N2 met on Spaces; uploads confirmed deleted |
-| **6. Polish** | Synchronised stem mixer (mute/solo/gain); waveform view; optional native macOS wrapper (pywebview) for drag-out into the DAW | Mixer playback stays in sync over a full song |
+| **6. Polish** | Synchronised stem mixer (mute/solo/gain); waveform view | Mixer playback stays in sync over a full song |
 | **7. Stretch** | RoFormer backend (if a clearly licensed checkpoint exists); Reaper ReaScript integration; in-browser inference (WebGPU); fine-tuning (Appendix B); DAW plugin (Appendix A) | — |
 
 ---
@@ -406,7 +421,7 @@ Used to compare models and settings, not to report absolute scores.
   acoustic). Note artefacts (bleed, phasiness, transient smearing) for each
   model, in a consistent template.
 - **Performance:** wall-clock time and peak memory for each model and preset,
-  on the M4 Pro (MPS), on CPU, and on the Spaces CPU tier.
+  in the dev container on the M4 Pro (CPU), and on the Spaces CPU tier.
 - **Reports** go in `docs/results/<phase>-<topic>.md` (e.g.
   `docs/results/phase-3-model-comparison.md`). The latest summary table is
   also shown in the README.
@@ -420,7 +435,7 @@ Used to compare models and settings, not to report absolute scores.
 | Core unit | Chunk/overlap-add round-trip (identity backend → output equals input), resampling, I/O, cancel token stops between chunks, residual projection makes stems sum to the mix |
 | Backends | Each backend against the interface contract (stems, lengths, sample rate), using a tiny stand-in model; the ensemble picks the right stem from each source |
 | Core integration | Separation on a 10 s fixture produces 6 stems of the right length |
-| App | Handlers tested directly with pytest: demo limits enforced (size, clip length, preset), temp files cleaned on success, error and cancel; local mode binds to `127.0.0.1` |
+| App | Handlers tested directly with pytest: demo limits enforced (size, clip length, preset), temp files cleaned on success, error and cancel; the local app's port is published on the host's `127.0.0.1` only |
 | End-to-end | `gradio_client` smoke test against a running app (upload fixture → 6 stems back), run in CI on CPU |
 | Model regression | Evaluation on a few fixed MUSDB18 sample clips in CI (CPU), failing if SDR drops past a threshold |
 | Export | Parity test for any exported model (§4.3) |
@@ -443,8 +458,9 @@ runs.
 | Spaces free CPU is too slow | Demo feels broken | 30 s clip limit; Fast preset; optimisation phase (§4.3); queue position shown; examples cached in advance |
 | Spaces sleeps when idle | Slow first load for visitors | README notice; cached examples load instantly once awake |
 | Users upload copyrighted music to the demo | Legal/ToS exposure | Clip-only processing, no storage, automatic deletion, clear notice |
-| Pretrained weights have unclear license terms | Can't ship or host them | License check in Phase 0; only use models with clear terms |
-| Dragging from the browser into a DAW is clunky | Worse W2 workflow | Export to folder + Finder button (A7); pywebview wrapper in Phase 6 |
+| Pretrained weights are research-use only (`docs/models.md`) | Hosting them in the demo is outside the stated terms | Accepted for a non-commercial learning/portfolio piece (§11); never redistributed or committed |
+| CPU-only inference in Docker (§4.4) | The local app is slower than it would be on the GPU | Speed work in §4.3 applies locally too; N1 target set from measurement |
+| Dragging from the browser into a DAW is clunky | Worse W2 workflow | Export to a bind-mounted host folder (A7) |
 | Gradio limits the UI (e.g. synced mixer) | Phase 6 harder | Custom Gradio component, or move to FastAPI + custom frontend; the core library is already separate |
 
 ---
@@ -466,15 +482,20 @@ runs.
   listening tests for guitar and piano.
 - **2026-10-22 — Model work in scope:** swappable backends, an ensemble, and
   speed optimisation.
+- **2026-10-22 — Docker only:** everything (tests, tools, evaluations, the
+  local app) runs in the dev container; nothing runs natively on the host.
+  Inference is therefore CPU-only (§4.4). This drops the native macOS wrapper
+  idea (formerly Phase 6 and open question 2).
+- **2026-10-22 — Model licences:** the Demucs weights are research-use only
+  (`docs/models.md`). Accepted as-is, because this is a non-commercial
+  learning/portfolio piece.
 
 ### Open
 
 1. **UI framework beyond v1:** stay on Gradio (with custom components) or
    move to FastAPI + a custom frontend for the Phase 6 mixer? Decide after
    Phase 2, once Gradio's limits are clearer.
-2. **Native wrapper:** is a pywebview macOS app worth it for drag-out into the
-   DAW, or is Export to folder enough? Decide after using W2 for real.
-3. **Spaces hardware:** stay on the free CPU tier, or apply for a community
+2. **Spaces hardware:** stay on the free CPU tier, or apply for a community
    GPU grant if the demo gets traffic?
 
 ---
@@ -550,8 +571,7 @@ stem.
   accumulation, mixed precision, on-the-fly remixing augmentation (stems from
   different songs, random gain, pitch/tempo shift, channel swap, polarity
   flip), L1 + multi-resolution STFT loss, early stopping on validation SDR.
-- **Compute:** the M4 Pro (MPS) for small fine-tunes; Kaggle or Colab free
-  GPUs for longer runs; checkpoints resumable so free-tier limits don't lose
-  work.
+- **Compute:** Kaggle or Colab free GPUs, since the dev container is
+  CPU-only (§4.4); checkpoints resumable so free-tier limits don't lose work.
 - **Exit criterion:** `keys` and `guitar` SDR improve by ≥ 1.0 dB over the
   pretrained baseline, with no core stem dropping by more than 0.2 dB.
