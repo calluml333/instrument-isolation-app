@@ -10,7 +10,7 @@ DIST = "instrument-isolation-app"
 
 @pytest.mark.parametrize(
     "module",
-    ["isolate.core", "isolate.models", "isolate.eval", "isolate.app"],
+    ["isolate.core", "isolate.models", "isolate.eval", "isolate.app", "isolate.cli"],
 )
 def test_module_imports(module):
     imported = importlib.import_module(module)
