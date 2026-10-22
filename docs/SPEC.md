@@ -2,17 +2,17 @@
 
 | | |
 |---|---|
-| **Status** | Draft v0.2 |
+| **Status** | Draft v0.3 |
 | **Owner** | Callum Little |
-| **Last updated** | 2026-10-12 |
+| **Last updated** | 2026-10-22 |
 | **Targets** | Local web app (macOS first), public demo on Hugging Face Spaces, Python CLI |
 | **Python** | 3.12 |
+| **Models** | Pretrained only (no training or fine-tuning) |
 
 > **Portfolio project, not for sale.** This project is non-commercial. It is
 > built as a portfolio piece and will not be sold or distributed commercially.
-> This matters in practice: the training datasets (MUSDB18-HQ, MoisesDB) are
-> licensed for non-commercial research use only, so neither the fine-tuned
-> model nor anything that ships it may be used commercially.
+> The evaluation data (MUSDB18 samples) is licensed for non-commercial research
+> use only.
 
 ---
 
@@ -26,25 +26,40 @@ produces one audio file per instrument group:
 | `drums` | Kit, percussion |
 | `bass` | Bass guitar, synth bass |
 | `guitar` | Electric and acoustic guitars |
-| `keys` | All keyboard and synth parts: piano, electric piano, organ, synth pads, synth leads |
+| `piano` | Acoustic and electric piano |
 | `vocals` | Lead and backing vocals |
-| `other` | Residual: everything not captured above (strings, brass, FX…) |
+| `other` | Residual: everything not captured above (synths, organ, strings, brass, FX…) |
 
-The `other` stem is a deliberate addition to the five requested stems. Without
-it, anything that isn't one of the five targets gets forced into one of them
-(e.g. strings bleeding into `keys`). It also lets the stems sum back to the
-original mix (see §5.4).
+The `other` stem is deliberate. Anything that isn't one of the five named
+targets goes there instead of being forced into one of them, and it lets the
+stems sum back to the original mix (see §5.4).
 
-The project is **Python end to end** and has three parts that share one core
+**Why `piano` and not `keys`:** the project uses pretrained models only (§4),
+and the best available 6-stem model separates *piano* specifically. Synths and
+organ mostly end up in `other`. The stem is named for what it actually
+contains. Widening it to all keyboards would need fine-tuning (Appendix B).
+
+The project is **Python end to end** and has two parts that share one core
 library:
 
-1. **ML pipeline:** data prep, fine-tuning, evaluation.
-2. **Core library and CLI (`isolate`):** the separation engine.
-3. **Web app:** a browser UI over the core library. It runs in two modes:
+1. **Core library and CLI (`isolate`):** the separation engine. It wraps
+   pretrained models behind one interface, combines them (§4.2), and handles
+   chunking, resampling and mixture consistency.
+2. **Web app:** a browser UI over the core library. It runs in two modes:
    - **Local:** on the user's own machine, full-length songs, GPU-accelerated,
      nothing leaves the machine. This is the "real" app.
    - **Demo:** hosted publicly on Hugging Face Spaces, with limits (short
      clips, CPU only). This is the portfolio showcase.
+
+### Why pretrained models only
+
+Fine-tuning needs the multitrack datasets (MUSDB18-HQ ~30 GB, MoisesDB far
+larger) stored locally, and that storage isn't available. Pretrained models
+already give useful quality for all six stems. The ML depth of the project
+comes from **inference engineering** instead: combining models, comparing them
+on a fixed evaluation set, and making them fast enough for a CPU-only demo
+(§4). The fine-tuning plan is kept in Appendix B in case storage becomes
+available later.
 
 ### Why an app and not a DAW plugin
 
@@ -71,23 +86,22 @@ stretch goal (Appendix A).
   into a DAW.
 - G3. A **public demo** anyone can try from a link, without installing
   anything.
-- G4. Train **without a local high-end GPU**: start from pretrained weights and
-  use transfer learning, with only light compute.
-- G5. Quality that is useful for practice, remixing and sampling. Target
-  numbers are in §8.
-- G6. **Local mode is fully offline.** No audio leaves the machine.
+- G4. Get the best quality available **from pretrained models**, by combining
+  them and choosing between them based on measured results.
+- G5. Fast enough to be pleasant: see the speed targets in §6.5.
+- G6. **Local mode is fully offline** after the one-off model download. No
+  audio leaves the machine.
 
 ### Non-goals (v1)
 
+- Training or fine-tuning any model (Appendix B).
 - Real-time, zero-latency separation of live input.
 - A DAW plugin (VST3/AU). Deferred to stretch, see Appendix A.
 - A hosted service for full-length songs. GPU hosting costs money, and storing
   users' (likely copyrighted) uploads is a liability. The public demo is
   deliberately limited (§6.4).
 - Splitting stems further, e.g. lead vs backing vocals or kick vs snare.
-- Training a model from scratch.
 - Commercial distribution. This is a portfolio project and will not be sold.
-  The dataset licenses rule it out anyway (§4.3).
 
 ---
 
@@ -102,10 +116,12 @@ to hear what it does in under a minute.
 ### W1: CLI (developer / batch)
 
 ```bash
-isolate separate song.wav --out stems/ --stems drums,bass,guitar,keys,vocals,other
+isolate separate song.wav --out stems/ --stems drums,bass,guitar,piano,vocals,other
 ```
 
 Writes `stems/song/<stem>.wav`, the same length and sample rate as the input.
+`--model` picks a model or ensemble (§4.2); the default is the best one
+measured in §8.
 
 ### W2: Local app (main workflow)
 
@@ -130,104 +146,72 @@ Writes `stems/song/<stem>.wav`, the same length and sample rate as the input.
 
 ---
 
-## 4. Modelling approach
+## 4. Models
 
-### 4.1 Base model choice
+### 4.1 Candidate pretrained models
 
-Use **transfer learning from a pretrained separator**. Candidates:
-
-| Model | Stems out of the box | License (code / weights) | Notes |
+| Model | Stems | License (code / weights) | Notes |
 |---|---|---|---|
-| **HTDemucs-6s** (Meta, `demucs` v4) | drums, bass, vocals, guitar, piano, other | MIT / MIT | Already 6 stems, close to our list. The piano stem is known to be weak. Hybrid time + spectrogram transformer. |
-| HTDemucs / HTDemucs-ft (4s) | drums, bass, vocals, other | MIT / MIT | Strongest Demucs model on the 4 stems. Would need new heads for guitar and keys. |
-| BS-RoFormer / Mel-RoFormer | Usually vocals or 4s (community checkpoints) | Code MIT; **weights vary** | State of the art on vocals. Heavier, and many checkpoints have unclear licenses. |
-| Open-Unmix (UMX-L) | 4s | MIT | Simple and light, but noticeably lower quality. |
+| **HTDemucs-6s** (Meta, `demucs` v4) | drums, bass, vocals, guitar, piano, other | MIT / verify | The only widely available model with guitar and piano stems. Its piano stem is the weakest. |
+| **HTDemucs-ft** | drums, bass, vocals, other | MIT / verify | A bag of 4 fine-tuned models, one per stem. Best Demucs quality on the 4 core stems, but about 4× slower. |
+| HTDemucs (4s) | drums, bass, vocals, other | MIT / verify | Faster than `-ft`, slightly lower quality. |
+| BS-RoFormer / Mel-RoFormer | Usually vocals or 4s (community checkpoints) | Code MIT; **weights vary** | State of the art on vocals. Many checkpoints have unclear licenses, so only use ones with a clear license. |
 
-**Decision: start from `htdemucs_6s`.** It already outputs almost exactly the
-stems we need, so the app works before any training. Fine-tuning then becomes
-about improving `keys` and `guitar`, not adding stems from scratch. We map
-`piano` → `keys` and widen the training targets for that stem to include
-synths and organ.
+**License check (Phase 0):** confirm the license of each set of pretrained
+weights before it's used or redistributed, and record it in
+`docs/models.md`.
 
-Keep **BS-RoFormer** as a stretch option, either as a stronger vocals/drums
-model or as a teacher for distillation, if the licenses allow it.
+**Default for v1: `htdemucs_6s`.** It is the only model that produces all six
+stems on its own, so it's the baseline (Phase 1) and the fallback.
 
-### 4.2 Transfer-learning strategy (low compute)
+### 4.2 Model backends and ensembles
 
-Order of attempts, from cheapest to most expensive:
+- M1. **Backend interface.** Every model sits behind one interface in
+  `isolate.core`: it takes a stereo waveform at 44.1 kHz and returns a dict of
+  named stems at the same length. It also reports which stems it supports, its
+  native sample rate and segment length. The engine, CLI and app only use this
+  interface, so models can be added and compared without changing anything
+  else.
+- M2. **Ensemble backend.** A backend that runs several models and takes each
+  stem from the model that does it best. The planned ensemble:
+  - `drums`, `bass`, `vocals` from **HTDemucs-ft**
+  - `guitar`, `piano` from **HTDemucs-6s**
+  - `other` = mix − (sum of the five above), so the stems always sum exactly
+    to the input
+- M3. **Selection is measured, not assumed.** Which model supplies each stem,
+  and whether the ensemble becomes the default, is decided by the evaluation in
+  §8. Speed counts too: the ensemble only becomes the **Best** preset if the
+  quality gain is worth the extra time. **Fast** stays on a single model.
+- M4. **Adding a model** means one new backend class plus an entry in a model
+  registry (name, weights URL, checksum, license, supported stems).
 
-1. **Zero-shot baseline.** Run `htdemucs_6s` as it is and measure (§8). This
-   gives the floor and must be done before any training.
-2. **Head/decoder fine-tune.** Freeze both encoders and the cross-domain
-   transformer. Train only the decoders for `guitar` and `keys` (and
-   optionally `other`).
-3. **Partial unfreeze.** Also unfreeze the last N transformer layers with a
-   10× lower learning rate.
-4. **Adapters / LoRA** on the transformer's attention projections, if full
-   partial-unfreezing overfits or doesn't fit in memory.
+### 4.3 Speed optimisation
 
-Training tricks that keep compute low:
+The public demo runs on a free CPU tier (§6.4), so inference speed matters.
+Options, measured in the performance phase:
 
-- Short segments (4–6 s), batch size 4–8, gradient accumulation.
-- Mixed precision (bf16 on MPS/CUDA where it is stable).
-- **On-the-fly remixing augmentation:** build new mixtures each step by
-  combining stems from *different* songs, plus random gain, pitch/tempo shift,
-  channel swap and polarity flip. This multiplies the effective size of a
-  small dataset.
-- Loss: L1 on the waveform plus multi-resolution STFT loss. The SDR-style
-  objective is used only for model selection.
-- Early stopping on validation SDR per stem.
+- **Dynamic INT8 quantisation** of the transformer layers (PyTorch).
+- **Export** to ONNX Runtime or Core ML, with the STFT/iSTFT kept outside the
+  exported graph (HTDemucs's complex spectrogram branch doesn't export
+  cleanly). Requires a parity test against PyTorch (max abs error < 1e-3,
+  SDR delta < 0.05 dB).
+- **Fewer shifts / smaller overlap** for the Fast preset.
 
-### 4.3 Data
+Each option is kept only if its quality cost (SDR change, measured in §8) and
+its speed gain are both reported, and the trade-off is worth it.
 
-| Dataset | Stems | Size | License | Use |
-|---|---|---|---|---|
-| **MoisesDB** | 11 top-level stems incl. guitar, piano, keys/synth, bass, drums, vocals | 240 tracks | Non-commercial research | **Main fine-tuning set** for guitar and keys |
-| MUSDB18-HQ | drums, bass, vocals, other | 150 tracks | Non-commercial research | Standard benchmark, regression check on the 4 core stems |
-| Slakh2100 | MIDI-rendered, incl. guitar, piano, bass, drums (no vocals) | 2100 tracks | CC BY 4.0 | Extra guitar/keys data. Synthetic, so use for pre-fine-tuning or mix it in at a low ratio |
-| MedleyDB 2.0 | Multitrack, many instruments | ~200 tracks | CC BY-NC-SA | Optional extra data or held-out eval |
+### 4.4 Compute
 
-**Stem mapping.** A config file (`configs/stem_map.yaml`) maps each dataset's
-instrument labels to our six stems. For example, MoisesDB `piano`,
-`keyboards`, `organ` and `synth` (pads and leads) all map to `keys`, and
-`bowed strings`/`wind` map to `other`. All datasets go through this one mapping layer.
-
-**Licensing consequence.** MUSDB18 and MoisesDB are non-commercial. A model
-fine-tuned on them is fine for this portfolio project but **cannot be sold**.
-That is acceptable because the project is non-commercial (see the note at the
-top). If the fine-tuned weights are published (e.g. on the Hugging Face Hub
-for the demo), they go out under a non-commercial license (CC BY-NC 4.0) with
-a model card that lists the training data. If the project ever went
-commercial, the model would need retraining on cleared data, such as Slakh or
-licensed multitracks.
-
-**Splits.** Split by song, never by segment. Keep the official MUSDB18 test
-set untouched for reporting.
-
-### 4.4 Compute plan
-
-The dev machine is an **Apple M4 Pro**, which is good enough for fine-tuning
-(heads, partial unfreeze, LoRA) on PyTorch's **MPS** backend.
-
-| Option | Cost | Use for |
-|---|---|---|
-| Local M4 Pro (MPS) | Free | Baseline, debugging, small fine-tunes |
-| Kaggle Notebooks (T4×2 / P100, ~30 GPU-h/week) | Free | Longer fine-tunes |
-| Google Colab (T4) | Free / ~£10 per month | Ad-hoc runs |
-| Rented GPU (RunPod, Lambda, vast.ai; A10/A100/4090 at ~$0.3–1.5/h) | Pay per use | One or two final runs, if needed |
+The dev machine is an **Apple M4 Pro**. Inference runs on PyTorch's **MPS**
+backend locally, and on CPU in CI and on the demo.
 
 ⚠️ **Docker on macOS cannot access the Apple GPU.** The devcontainer is
-CPU-only and fits linting, tests and data prep. MPS training, and running the
-local app at full speed, have to happen **natively** (Poetry venv on the
-host). Cloud runs use the same code with `--device cuda`.
-
-Expected budget: fine-tuning should take tens of GPU-hours at most. Keep
-training resumable (checkpoint every N steps) so free-tier session limits
-don't lose work.
+CPU-only and fits linting, tests and short CPU runs. Running the local app or
+evaluations at full speed has to happen **natively** (Poetry venv on the host).
 
 ---
 
-## 5. Core library and ML pipeline — requirements
+## 5. Core library — requirements
 
 Python version: **3.12** for everything (host venv, devcontainer, CI and the
 Spaces deployment). It is new enough for current PyTorch and old enough that
@@ -237,24 +221,21 @@ Spaces deployment). It is new enough for current PyTorch and old enough that
 
 ```text
 src/isolate/
-  core/          # separation engine: model loading, chunking, overlap-add,
-                 #   resampling, stem writing; progress + cancel hooks
-  data/          # dataset loaders, stem mapping, augmentation
-  models/        # htdemucs wrapper, fine-tune heads, LoRA adapters
+  core/          # separation engine: chunking, overlap-add, resampling,
+                 #   stem writing; progress + cancel hooks
+  models/        # backend interface, registry, demucs/ensemble backends
+  eval/          # evaluation harness: datasets, metrics, reports
   app/           # web app: UI, job runner, local/demo mode config
-  train.py       # training entry point (config-driven)
-  evaluate.py    # SDR / SI-SDR evaluation on held-out sets
-  cli.py         # `isolate` command: separate, app, evaluate, train
-configs/         # stem_map.yaml, train/*.yaml, app/*.yaml
-scripts/         # dataset download/prep helpers
-spaces/          # Hugging Face Spaces entry point + README metadata
+  cli.py         # `isolate` command: separate, app, eval, models
+configs/         # app/*.yaml, eval/*.yaml
 tests/
 docs/
+spaces/          # Hugging Face Spaces entry point + README metadata
 ```
 
-The app and CLI only talk to `isolate.core`. They never import training code.
-This keeps the deployed demo small and lets the UI be swapped out later
-without touching the engine.
+The app and CLI only talk to `isolate.core` and `isolate.models`. This keeps
+the deployed demo small and lets the UI be swapped out later without touching
+the engine.
 
 ### 5.2 Inference requirements
 
@@ -272,30 +253,23 @@ without touching the engine.
   **cancel token**, checked between chunks, so the UI can show progress and
   stop a job cleanly.
 
-### 5.3 Training requirements
+### 5.3 Model management
 
-- R8. Config-driven (which layers to freeze, LR per group, segment length,
-  augmentation).
-- R9. Checkpoints can be resumed. Log to TensorBoard or W&B.
-- R10. Run validation SDR per stem every N steps and keep the best checkpoint
-  per metric.
-- R11. Results are reproducible from a seed plus the config.
+- R8. Weights are downloaded on first use from the URL in the model registry
+  (M4), verified against a checksum, and cached
+  (`~/Library/Caches/isolate/models/` on macOS). No weights are committed to
+  the repo.
+- R9. `isolate models list` shows the available models and ensembles, their
+  stems, license and whether they're downloaded. `isolate models download
+  <name>` fetches one ahead of time (e.g. for offline use or the demo build).
 
 ### 5.4 Mixture consistency
 
-- R12. Optional **residual projection**: after inference, spread the error
-  `mix − Σstems` across the stems (or put it all into `other`), so the stems
-  sum exactly to the input. Producers expect this, because muting nothing
-  should give back the original mix. On by default in the app.
-
-### 5.5 Model packaging
-
-- R13. Fine-tuned weights are published to a **Hugging Face Hub model repo**
-  with a model card (training data, non-commercial license, eval table).
-  The app downloads them on first run, checks the checksum, and caches them.
-  The pretrained `htdemucs_6s` weights remain available as a fallback model.
-- R14. Optional dynamic INT8 quantization (`torch.ao.quantization`) for the
-  CPU-only demo, with the SDR cost measured and reported.
+- R10. **Residual projection**: after inference, put the error
+  `mix − Σstems` into `other` (or spread it across the stems), so the stems sum
+  exactly to the input. Producers expect this, because muting nothing should
+  give back the original mix. On by default in the app. The ensemble (M2) does
+  this by construction.
 
 ---
 
@@ -304,7 +278,7 @@ without touching the engine.
 ### 6.1 Architecture
 
 ```text
- Browser UI ──► App layer (Gradio) ──► Job runner ──► isolate.core ──► model
+ Browser UI ──► App layer (Gradio) ──► Job runner ──► isolate.core ──► model backend
                      │                 (1 worker,         │
                      │                  queue, cancel)    ▼
                      └──────────────── Job storage (temp dir per job,
@@ -318,21 +292,22 @@ without touching the engine.
   model uses most of the machine). Other requests wait in Gradio's queue with
   their position shown.
 - **Storage:** each job gets a temp directory. Results are cached by a hash
-  of the input audio plus the preset and model version, so separating the
-  same file twice is instant.
+  of the input audio plus the preset and model, so separating the same file
+  twice is instant.
 - **Mode** is selected by config (`ISOLATE_MODE=local|demo`). The two modes
   run the same code with different limits (§6.4).
 
 **Alternative considered:** FastAPI backend + custom frontend (e.g. Svelte
 with the Web Audio API). This gives full control over the UI, e.g. a
 synchronised multitrack mixer with mute/solo. It is more work, so it is kept
-for v1.x if Gradio's components become limiting (§11).
+for later if Gradio's components become limiting (§11).
 
 ### 6.2 Functional requirements
 
 - A1. Upload by drag-and-drop or file picker. WAV, AIFF, FLAC and MP3.
   Unsupported or corrupt files get a clear error message.
-- A2. Quality preset: **Fast** (shifts=0) / **Best** (shifts=2).
+- A2. Quality preset: **Fast** (single model, no shifts) / **Best** (the
+  best measured model or ensemble, with shifts).
 - A3. Choose which stems to output (default: all six).
 - A4. Shows progress and the time remaining, and the job can be cancelled.
 - A5. One audio player and one download button per stem, plus the original
@@ -341,10 +316,9 @@ for v1.x if Gradio's components become limiting (§11).
   they sort together and are clear once dropped into a DAW.
 - A7. Local mode only: **Export to folder** (default
   `~/Music/Stems/<song>/`) and a button to show that folder in Finder.
-- A8. Shows which model and preset produced the stems (for reproducibility
-  and the eval write-ups).
-- A9. Built-in example clips (licensed for reuse, e.g. from Slakh or
-  CC-licensed recordings), so demo visitors can try it without their own file.
+- A8. Shows which model and preset produced the stems.
+- A9. Built-in example clips (licensed for reuse, e.g. CC-licensed
+  recordings), so demo visitors can try it without their own file.
 
 ### 6.3 Local mode
 
@@ -363,7 +337,7 @@ for v1.x if Gradio's components become limiting (§11).
   - Max upload size 20 MB.
   - Processes a **30-second section** chosen by the user (default: from
     0:30). The rest of the file is discarded immediately.
-  - Fast preset only. INT8 model if R14 shows the quality cost is small.
+  - Fast preset only, using the fastest acceptable model from §4.3.
   - One job at a time, with a queue length cap.
 - **Privacy and copyright:**
   - Uploads and results are deleted at the end of the session, or after
@@ -371,7 +345,8 @@ for v1.x if Gradio's components become limiting (§11).
   - The page shows a short notice: upload only audio you have the right to
     use. The demo is a non-commercial portfolio piece.
 - Deployed with Spaces' Gradio SDK, pinned to Python 3.12 in the Space's
-  README metadata. Deployed automatically by CI on tagged releases.
+  README metadata. Model weights are fetched at build time (R9). Deployed
+  automatically by CI on tagged releases.
 - Free Spaces go to sleep when idle. The repo README warns that the first
   load can take about a minute.
 
@@ -386,7 +361,7 @@ for v1.x if Gradio's components become limiting (§11).
 - N4. **Robustness:** errors in decoding or inference show in the UI as a
   readable message. They never crash the server or leave temp files behind.
 - N5. **Privacy:** local mode makes no network requests apart from the
-  one-off model download (R13). Demo mode follows §6.4.
+  one-off model downloads (R8). Demo mode follows §6.4.
 - N6. **Accessibility basics:** all controls usable by keyboard, with labels
   on every control.
 
@@ -394,42 +369,47 @@ for v1.x if Gradio's components become limiting (§11).
 
 ## 7. Phased roadmap
 
-The app comes **before** fine-tuning on purpose. The pretrained model is good
-enough to build and demo the whole product early. Fine-tuning then improves
-the quality inside a product that already works.
+The app comes early on purpose. The baseline model is good enough to build and
+demo the whole product, and the model work then improves quality inside a
+product that already works.
 
 | Phase | Deliverable | Exit criteria |
 |---|---|---|
-| **0. Foundations** | Python 3.12 package skeleton, Poetry deps, CI (lint + tests), dataset download scripts | `pytest` green in CI; MUSDB18-HQ and MoisesDB prepared locally |
-| **1. Baseline** | `isolate.core` engine with pretrained `htdemucs_6s`; `isolate separate` CLI; evaluation harness | Baseline SDR table (§8) for all 6 stems; N1 speed measured |
+| **0. Foundations** | Python 3.12 package skeleton, Poetry deps, CI (lint + tests + devcontainer build), host Python 3.12 setup, model license check (`docs/models.md`) | `pytest` green in CI; `isolate --version` works in the container and natively |
+| **1. Baseline** | Backend interface + registry (M1, M4); `htdemucs_6s` backend; `isolate.core` engine; `isolate separate` CLI; evaluation harness on MUSDB18 samples (§8) | Baseline results table (§8); N1 speed measured |
 | **2. Local app v1** | Gradio app in local mode: A1–A8 | Full W2 workflow works, ending with stems in both Reaper and Logic |
-| **3. Fine-tune** | Stem mapping, augmentation, head/partial fine-tuning on MoisesDB (+Slakh); weights + model card on the HF Hub | `keys` and `guitar` SDR improve by **≥ 1.0 dB** over the baseline, and no core stem drops by more than 0.2 dB |
-| **4. Public demo** | Demo mode (§6.4) on Hugging Face Spaces; example clips; CI deploy; README with link, results and screenshots | Link works from a fresh browser; N2 met; uploads confirmed deleted |
-| **5. Polish** | Synchronised stem mixer (mute/solo/gain); waveform view; optional native macOS wrapper (pywebview) for drag-out into the DAW | Mixer playback stays in sync over a full song |
-| **6. Stretch** | Reaper ReaScript integration; ONNX export + in-browser inference (WebGPU); RoFormer models / distillation; DAW plugin (Appendix A) | — |
+| **3. Model comparison** | `htdemucs`, `htdemucs_ft` and ensemble backends (M2); comparison report; default chosen per M3 | Ensemble beats `htdemucs_6s` alone on the core stems, or the report shows why it doesn't; Fast/Best presets set from the results |
+| **4. Performance** | Quantisation and export experiments (§4.3); benchmark report | N2 met on CPU with a quality cost that's reported and accepted |
+| **5. Public demo** | Demo mode (§6.4) on Hugging Face Spaces; example clips; CI deploy; README with link, results and screenshots | Link works from a fresh browser; N2 met on Spaces; uploads confirmed deleted |
+| **6. Polish** | Synchronised stem mixer (mute/solo/gain); waveform view; optional native macOS wrapper (pywebview) for drag-out into the DAW | Mixer playback stays in sync over a full song |
+| **7. Stretch** | RoFormer backend (if a clearly licensed checkpoint exists); Reaper ReaScript integration; in-browser inference (WebGPU); fine-tuning (Appendix B); DAW plugin (Appendix A) | — |
 
 ---
 
 ## 8. Evaluation
 
-- **Metrics:** per-stem **SDR** (museval / BSSEval v4, median over tracks, the
-  MUSDB convention) and **SI-SDR**. Report both.
-- **Test sets:**
-  - MUSDB18-HQ test (50 tracks), for drums, bass, vocals and other only.
-  - A held-out MoisesDB split (~30 tracks, never used in training), for all
-    six stems.
-- **Reference numbers (published, for context only):** HTDemucs scores
-  roughly 9 dB average SDR on MUSDB18-HQ. The `htdemucs_6s` guitar stem is
-  usable, and its piano stem is weak, with noticeable bleed. Our own Phase 1
-  measurements replace these.
-- **Listening tests:** a fixed set of ~10 tracks across genres (rock, pop,
-  jazz, electronic, acoustic). Note artefacts (phasiness, bleed, transient
-  smearing) for each release.
-- **Performance:** track wall-clock time and peak memory per model version,
-  on the M4 Pro (local) and on the Spaces CPU tier (demo).
+Used to compare models and settings, not to report absolute scores.
 
-Results go in `docs/results/<version>.md` so progress can be compared over
-time. The latest table is also shown in the README and the model card.
+- **Data: the MUSDB18 7-second sample set.** The `musdb` Python package
+  downloads it on demand: 7-second excerpts of all 150 MUSDB18 tracks, a few
+  hundred MB at most. It is stored in the user cache, not in the repo.
+  - It has drums, bass, vocals and other stems only. **Guitar and piano can't
+    be scored numerically** with it.
+  - Its audio is compressed and short, so its scores are **only comparable with
+    each other**, not with published MUSDB18-HQ results.
+  - Licensed for non-commercial research use. Used for evaluation only, never
+    redistributed.
+- **Metrics:** per-stem **SDR** (museval / BSSEval v4, median over tracks) and
+  **SI-SDR**, on the official test split (50 tracks).
+- **Guitar and piano:** a **listening test** on a fixed set of ~10
+  CC-licensed or self-owned tracks across genres (rock, pop, jazz, electronic,
+  acoustic). Note artefacts (bleed, phasiness, transient smearing) for each
+  model, in a consistent template.
+- **Performance:** wall-clock time and peak memory for each model and preset,
+  on the M4 Pro (MPS), on CPU, and on the Spaces CPU tier.
+- **Reports** go in `docs/results/<phase>-<topic>.md` (e.g.
+  `docs/results/phase-3-model-comparison.md`). The latest summary table is
+  also shown in the README.
 
 ---
 
@@ -437,15 +417,18 @@ time. The latest table is also shown in the README and the model card.
 
 | Layer | Tests |
 |---|---|
-| Core unit | Stem mapping, chunk/overlap-add round-trip (identity model → output equals input), resampling, I/O, cancel token stops between chunks |
-| Core integration | Separation on a 10 s fixture produces 6 stems of the right length; mixture consistency holds when R12 is enabled |
+| Core unit | Chunk/overlap-add round-trip (identity backend → output equals input), resampling, I/O, cancel token stops between chunks, residual projection makes stems sum to the mix |
+| Backends | Each backend against the interface contract (stems, lengths, sample rate), using a tiny stand-in model; the ensemble picks the right stem from each source |
+| Core integration | Separation on a 10 s fixture produces 6 stems of the right length |
 | App | Handlers tested directly with pytest: demo limits enforced (size, clip length, preset), temp files cleaned on success, error and cancel; local mode binds to `127.0.0.1` |
 | End-to-end | `gradio_client` smoke test against a running app (upload fixture → 6 stems back), run in CI on CPU |
-| Model regression | Evaluation on a small fixed subset in CI (CPU, a few clips), failing if SDR drops past a threshold |
+| Model regression | Evaluation on a few fixed MUSDB18 sample clips in CI (CPU), failing if SDR drops past a threshold |
+| Export | Parity test for any exported model (§4.3) |
 | Manual | Release checklist: W2 in Reaper and Logic; W3 on the deployed Space from a fresh browser |
 
 CI uses a tiny stand-in model for most tests so they run fast on CPU. Only the
-regression and end-to-end jobs load the real weights.
+regression and end-to-end jobs load real weights, and those are cached between
+runs.
 
 ---
 
@@ -453,33 +436,41 @@ regression and end-to-end jobs load the real weights.
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| `keys` is ill-defined (piano vs synth vs pads overlap with `other` and `guitar`) | Low keys SDR, confusing results | Clear stem map; widen the target; keep the `other` residual; judge by ear as well as by SDR |
-| Spaces free CPU is too slow | Demo feels broken | 30 s clip limit; Fast preset; INT8 model (R14); queue position shown; examples cached in advance |
-| Spaces sleeps when idle | Slow first load for visitors | README notice; cached examples load instantly once awake; ZeroGPU or a paid tier only if really needed |
+| `piano` stem quality is weak in `htdemucs_6s` | Disappointing results for keyboard-heavy music | Name the stem honestly; document the limitation; listening tests; fine-tuning stays possible later (Appendix B) |
+| Synths and organ land in `other` | Users expecting a "keys" stem | Clear stem descriptions in the UI and README |
+| No numeric scores for guitar and piano | Model choices for those stems rest on listening tests | Fixed listening-test set and template; same tracks every time |
+| Ensemble is too slow | Best preset feels sluggish | Selection rule M3; Fast preset stays single-model |
+| Spaces free CPU is too slow | Demo feels broken | 30 s clip limit; Fast preset; optimisation phase (§4.3); queue position shown; examples cached in advance |
+| Spaces sleeps when idle | Slow first load for visitors | README notice; cached examples load instantly once awake |
 | Users upload copyrighted music to the demo | Legal/ToS exposure | Clip-only processing, no storage, automatic deletion, clear notice |
-| Dragging from the browser into a DAW is clunky | Worse W2 workflow | Export to folder + Finder button (A7); pywebview wrapper in Phase 5 |
-| Free-tier GPU limits | Slow fine-tuning | Fine-tune small parts of the model; MPS locally; resumable checkpoints |
-| Dataset licenses are non-commercial | Can't sell it | Accepted: this is a non-commercial portfolio project; weights published as CC BY-NC |
-| Gradio limits the UI (e.g. synced mixer) | Phase 5 harder | Custom Gradio component, or move to FastAPI + custom frontend; the core library is already separate |
+| Pretrained weights have unclear license terms | Can't ship or host them | License check in Phase 0; only use models with clear terms |
+| Dragging from the browser into a DAW is clunky | Worse W2 workflow | Export to folder + Finder button (A7); pywebview wrapper in Phase 6 |
+| Gradio limits the UI (e.g. synced mixer) | Phase 6 harder | Custom Gradio component, or move to FastAPI + custom frontend; the core library is already separate |
 
 ---
 
 ## 11. Decisions and open questions
 
-### Decided (2026-10-12)
+### Decided
 
-- **`keys` stem:** includes everything keyboard- or synth-based: piano,
-  electric piano, organ, synth pads and synth leads.
-- **Commercial use:** none. This is a portfolio piece and will not be sold.
-  Non-commercial datasets are therefore acceptable.
-- **Python version:** 3.12.
-- **Product form:** a web app (local + hosted demo) instead of a DAW plugin.
-  The plugin is deferred to stretch (Appendix A).
+- **2026-10-12 — Commercial use:** none. This is a portfolio piece and will not
+  be sold.
+- **2026-10-12 — Python version:** 3.12.
+- **2026-10-12 — Product form:** a web app (local + hosted demo) instead of a
+  DAW plugin. The plugin is deferred to stretch (Appendix A).
+- **2026-10-22 — No training:** pretrained models only, because there's no
+  storage for the training datasets. Fine-tuning moves to Appendix B.
+- **2026-10-22 — Stem names:** `piano` instead of `keys`, to match what the
+  pretrained model separates.
+- **2026-10-22 — Evaluation:** MUSDB18 7-second samples for numeric scores,
+  listening tests for guitar and piano.
+- **2026-10-22 — Model work in scope:** swappable backends, an ensemble, and
+  speed optimisation.
 
 ### Open
 
 1. **UI framework beyond v1:** stay on Gradio (with custom components) or
-   move to FastAPI + a custom frontend for the Phase 5 mixer? Decide after
+   move to FastAPI + a custom frontend for the Phase 6 mixer? Decide after
    Phase 2, once Gradio's limits are clearer.
 2. **Native wrapper:** is a pywebview macOS app worth it for drag-out into the
    DAW, or is Export to folder enough? Decide after using W2 for real.
@@ -494,10 +485,8 @@ regression and end-to-end jobs load the real weights.
   (HTDemucs), ICASSP 2023 — `github.com/facebookresearch/demucs`
 - Lu et al., *Music Source Separation with Band-Split RoPE Transformer*
   (BS-RoFormer), 2023
-- Pereira et al., *MoisesDB: A Dataset for Source Separation Beyond 4-Stems*,
-  ISMIR 2023
-- Rafii et al., *MUSDB18-HQ*, 2019
-- Manilow et al., *Slakh2100*, WASPAA 2019
+- Rafii et al., *MUSDB18*, 2017 — `sigsep.github.io/datasets/musdb.html`;
+  `musdb` Python package — `github.com/sigsep/sigsep-mus-db`
 - Gradio documentation — `gradio.app`; Hugging Face Spaces — `huggingface.co/docs/hub/spaces`
 
 ---
@@ -529,11 +518,8 @@ which is why the app came first.
 - **JUCE 8** (C++20, CMake): one codebase for VST3, AU and Standalone, with
   ARA support.
 - **ONNX Runtime** (C++) with the CoreML execution provider, or a direct
-  Core ML conversion. Benchmark both.
-- ONNX export (opset ≥ 17) with **STFT/iSTFT kept outside the graph**, because
-  HTDemucs's complex spectrogram branch doesn't export cleanly. STFT/iSTFT
-  are implemented in C++ (vDSP), with a PyTorch-vs-ONNX parity test (max abs
-  error < 1e-3, SDR delta < 0.05 dB).
+  Core ML conversion, reusing the export work from §4.3.
+- STFT/iSTFT implemented in C++ (vDSP), with a parity test against PyTorch.
 - Validation with `pluginval`, `auval -v` and the VST3 validator, plus a
   signed and notarized installer (needs an Apple Developer ID).
 
@@ -541,4 +527,31 @@ which is why the app came first.
 
 A **Reaper ReaScript** (Lua) action that renders the selected item, calls
 `isolate separate`, and imports the stems as new tracks. This gives one-click
-DAW integration for Reaper with no C++ (roadmap Phase 6).
+DAW integration for Reaper with no C++ (roadmap Phase 7).
+
+---
+
+## Appendix B. Fine-tuning (deferred, needs dataset storage)
+
+Kept for if storage for the datasets becomes available (an external drive of
+~200 GB+ would cover both). This is how `piano` would become a full `keys`
+stem.
+
+- **Data:** MoisesDB (240 tracks, has guitar, piano, keys and synth stems) as
+  the main fine-tuning set; MUSDB18-HQ as the benchmark; Slakh2100 (CC BY 4.0,
+  synthetic) as extra guitar/keys data. MUSDB18-HQ and MoisesDB are
+  non-commercial only. A config file maps each dataset's instrument labels to
+  our stems. Splits are by song, never by segment.
+- **Strategy, from cheapest to most expensive:** freeze the encoders and
+  transformer and train only the guitar/keys decoders → also unfreeze the last
+  few transformer layers at a 10× lower learning rate → LoRA adapters on the
+  attention projections.
+- **Training tricks:** 4–6 s segments, small batches with gradient
+  accumulation, mixed precision, on-the-fly remixing augmentation (stems from
+  different songs, random gain, pitch/tempo shift, channel swap, polarity
+  flip), L1 + multi-resolution STFT loss, early stopping on validation SDR.
+- **Compute:** the M4 Pro (MPS) for small fine-tunes; Kaggle or Colab free
+  GPUs for longer runs; checkpoints resumable so free-tier limits don't lose
+  work.
+- **Exit criterion:** `keys` and `guitar` SDR improve by ≥ 1.0 dB over the
+  pretrained baseline, with no core stem dropping by more than 0.2 dB.
