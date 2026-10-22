@@ -1,0 +1,45 @@
+[project]
+name = "instrument-isolation-app"
+version = "0.1.0"
+description = "Music source separation: split a stereo mix into drums, bass, guitar, piano, vocals and other."
+authors = [{ name = "Callum Little", email = "callum.little.dev@gmail.com" }]
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = []
+
+[project.scripts]
+isolate = "isolate.cli:main"
+
+[tool.poetry]
+packages = [{ include = "isolate", from = "src" }]
+requires-poetry = ">=2.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^9.1"
+pytest-cov = "^7.0"
+pytest-socket = "^0.8"
+ruff = "^0.17"
+
+[build-system]
+requires = ["poetry-core>=2.0,<3.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "B", "UP", "SIM", "RUF", "PT"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=isolate",
+    "--cov-report=term-missing",
+    "--disable-socket",
+    "--allow-unix-socket",
+]
