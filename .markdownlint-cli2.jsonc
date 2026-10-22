@@ -1,0 +1,10 @@
+{
+  "config": {
+    "default": true,
+    // Long lines are unavoidable in tables and URLs.
+    "MD013": false,
+    // Tables are written compactly (|---|), not padded/aligned.
+    "MD060": false
+  },
+  "ignores": [".venv/**", "node_modules/**"]
+}

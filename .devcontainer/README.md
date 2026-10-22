@@ -51,9 +51,11 @@ To enable GPU (NVIDIA CUDA):
 
 1. Ensure NVIDIA Docker runtime is installed
 2. In `.devcontainer/Dockerfile`, uncomment:
+
    ```dockerfile
    # RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
    ```
+
 3. In `.devcontainer/docker-compose.yml`, uncomment the GPU deployment section
 4. In `.devcontainer/devcontainer.json`, update runArgs if needed
 
@@ -82,21 +84,25 @@ The project uses `package-mode = false` in `pyproject.toml` — Poetry only mana
 the dependency environment, it doesn't install `src` as a package. Scripts and
 tests work because they're run from the repository root (or insert it onto
 `sys.path` themselves), so `import src` resolves against the working directory:
+
 ```bash
 python -c "import src; print(src.__version__)"
 ```
 
 ## Troubleshooting
 
-**Container build fails**: 
+**Container build fails**:
+
 - Ensure Docker has enough disk space
 - Try `docker system prune` to clean up
 
 **GPU not detected**:
+
 - Verify NVIDIA Docker runtime: `docker run --rm --gpus all nvidia/cuda:12.0-base nvidia-smi`
 - Check CUDA version compatibility with PyTorch
 
 **Slow builds**:
+
 - Use BuildKit: `DOCKER_BUILDKIT=1 docker build ...`
 - Cache Docker layers by avoiding `pip install` changes
 
