@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-10-22 (with changes: Docker only, see P0-D12) |
+| **Status** | Implemented (approved 2026-10-22 with changes: Docker only, see P0-D12) |
 | **Phase** | 0 (docs/SPEC.md §7) |
 | **Owner** | Callum Little |
 | **Last updated** | 2026-10-22 |
@@ -123,20 +123,27 @@ SPEC v0.3 merged to `main` before branching.
 
 ## 7. Traceability
 
-Filled in at the end of the phase.
-
 | ID | Implementation | Verification | Status |
 |---|---|---|---|
-| P0-R1 | | | Not started |
-| P0-R2 | | | Not started |
-| P0-R3 | | | Not started |
-| P0-R4 | | | Not started |
-| P0-R5 | | | Not started |
-| P0-R6 | | | Not started |
-| P0-R7 | | | Not started |
-| P0-R8 | | | Not started |
-| P0-R9 | | | Not started |
-| P0-R10 | | | Not started |
-| P0-R11 | | | Not started |
-| P0-R12 | | | Not started |
-| P0-R13 | | | Not started |
+| P0-R1 | `src/isolate/{core,models,eval,app}/__init__.py`, `src/isolate/cli.py` | `tests/test_package.py::test_module_imports` | Met |
+| P0-R2 | `src/isolate/__init__.py` (`importlib.metadata`), `pyproject.toml` `version` | `tests/test_package.py::test_version_matches_metadata` | Met |
+| P0-R3 | `src/isolate/cli.py`, `src/isolate/__main__.py`, `[project.scripts]` | `tests/test_cli.py` (in-process and subprocess) | Met |
+| P0-R4 | `pyproject.toml` `requires-python` | `tests/test_package.py::test_requires_python` | Met |
+| P0-R5 | `pyproject.toml`, `poetry.lock`, `poetry.toml` | CI `poetry check --lock`; `poetry show --only main` is empty | Met |
+| P0-R6 | `pyproject.toml` `[tool.ruff]` | CI Ruff lint and format steps | Met |
+| P0-R7 | `pyproject.toml` `[tool.pytest.ini_options]` | `tests/test_network.py::test_network_is_blocked`; CI pytest | Met |
+| P0-R8 | `.github/workflows/ci.yml` `python` job | PR #8: `Python (lint, format, tests)` green in 20 s on a cold cache ([run](https://github.com/calluml333/instrument-isolation-app/actions/runs/39802038623)) | Met |
+| P0-R9 | `.github/workflows/devcontainer.yml` | PR #8: `Build and test in dev container` green in 1 m 14 s ([run](https://github.com/calluml333/instrument-isolation-app/actions/runs/39802038615)) | Met |
+| P0-R10 | `.devcontainer/devcontainer.json` `remoteEnv.PATH`, `.devcontainer/post-create.sh` | `npx @devcontainers/cli exec --workspace-folder . isolate --version` → `isolate 0.1.0` (local); P0-R9 workflow | Met |
+| P0-R11 | Node feature in `devcontainer.json`; README setup | markdownlint-cli2 run in the container: 0 issues; no host installs | Met |
+| P0-R12 | `docs/models.md`, SPEC §4.1, §10 | `tests/test_docs.py`; CI `docs` job (lint + links) | Met |
+| P0-R13 | `README.md`, `CLAUDE.md`, `.devcontainer/README.md` | CI `docs` job; review on the PR | Met |
+
+### Divergences from the approved draft
+
+- `poetry.toml` added (in-project venv for everyone), because the container
+  had put the venv under the bind-mounted `~/.cache`.
+- `filterwarnings = ["error"]` added to the pytest config.
+- `post-create.sh` calls `/usr/local/bin/python` explicitly: with `.venv/bin`
+  first on `PATH`, `pip install --user` would otherwise run in the venv and
+  fail.
