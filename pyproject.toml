@@ -43,3 +43,4 @@ addopts = [
     "--disable-socket",
     "--allow-unix-socket",
 ]
+filterwarnings = ["error"]
