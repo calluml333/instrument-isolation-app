@@ -30,9 +30,14 @@ RUN pip install --upgrade pip && \
 WORKDIR /workspace
 COPY . /workspace
 
-# Configure Poetry to create environment inside the project and install dependencies.
+# Configure Poetry to create environment inside the project and install
+# dependencies. Skipped until the project has a pyproject.toml (Phase 0).
 RUN poetry config virtualenvs.in-project true && \
-    poetry install --no-interaction --with dev --with demo
+    if [ -f pyproject.toml ]; then \
+        poetry install --no-interaction --with dev; \
+    else \
+        echo "No pyproject.toml yet; skipping poetry install"; \
+    fi
 
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1

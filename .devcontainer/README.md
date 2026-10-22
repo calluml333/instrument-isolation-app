@@ -1,113 +1,124 @@
 # Dev Container Setup
 
-## Quick Start
+The dev container is for **linting, tests, data prep, git and `gh`**, run the
+same way CI runs them. Anything that needs the GPU (fine-tuning, running the
+app at full speed) must run **natively on the Mac**, because Docker on macOS
+cannot access the Apple GPU (see [docs/SPEC.md](../docs/SPEC.md) §4.4).
 
-### Option 1: VS Code Dev Container (Recommended)
+## Prerequisites
 
-1. **Install Prerequisites**
-   - [VS Code](https://code.visualstudio.com/)
-   - [Dev Containers Extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
-   - [Docker Desktop](https://www.docker.com/products/docker-desktop)
+- [Docker Desktop](https://www.docker.com/products/docker-desktop) (required
+  for SSH agent forwarding, see below)
+- Either [VS Code](https://code.visualstudio.com/) with the
+  [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers),
+  or Node.js for the Dev Containers CLI
+- A git identity on the host (`git config --global user.name` / `user.email`)
+- Your GitHub SSH key loaded in the host's SSH agent (`ssh-add -l` lists it)
 
-2. **Open in Dev Container**
-   - Open the project in VS Code
-   - Press `Cmd/Ctrl + Shift + P` → "Dev Containers: Open Folder in Container"
-   - VS Code rebuilds the container and reloads
-   - All tools and dependencies are ready!
+## Option 1: VS Code
 
-### Option 2: Docker Compose
+Press `Cmd/Ctrl + Shift + P` → **Dev Containers: Reopen in Container**. After
+changing anything in `.devcontainer/`, use **Dev Containers: Rebuild
+Container**.
+
+## Option 2: Dev Containers CLI (terminal, or Claude Code)
 
 ```bash
-# Build and start the dev container
-docker-compose -f .devcontainer/docker-compose.yml up -d
-
-# Connect to container shell
-docker-compose -f .devcontainer/docker-compose.yml exec dev bash
-
-# Run commands in container
-docker-compose -f .devcontainer/docker-compose.yml exec dev python scripts/generate_dataset.py
+npx @devcontainers/cli up --workspace-folder .
 ```
 
-### Option 3: Local Development (Without Container)
-
 ```bash
-poetry env use python3.12
-poetry install --with dev --with demo
-source .venv/bin/activate
+npx @devcontainers/cli exec --workspace-folder . bash
 ```
 
-## What's Included
+`exec` also runs single commands, e.g. `... exec --workspace-folder . git status`.
 
-- **Python 3.12**: Project-wide Python version (supported by the full ML stack)
-- **PyTorch**: Deep learning framework (CPU by default, GPU optional)
-- **Audio Libraries**: libsndfile, ffmpeg, sox
-- **Development Tools**: Git, vim, curl, wget
-- **VS Code Extensions**: Python, Pylance, Jupyter, Black formatter, Ruff linter
-- **Development Dependencies**: pytest, black, flake8
+## Option 3: Docker Compose
 
-## GPU Support
-
-To enable GPU (NVIDIA CUDA):
-
-1. Ensure NVIDIA Docker runtime is installed
-2. In `.devcontainer/Dockerfile`, uncomment:
-
-   ```dockerfile
-   # RUN pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
-   ```
-
-3. In `.devcontainer/docker-compose.yml`, uncomment the GPU deployment section
-4. In `.devcontainer/devcontainer.json`, update runArgs if needed
-
-## Common Commands
+Uses [Dockerfile](Dockerfile), which also installs CPU-only PyTorch into the
+image. It doesn't include the git/SSH/`gh` setup below.
 
 ```bash
-# Generate dataset
-python scripts/generate_dataset.py --input-dir data/raw --out-dir data/generated
-
-# Train model
-python -m src.train --epochs 30 --batch-size 32
-
-# Run tests
-pytest tests/
-
-# Format code
-black src/ scripts/
-
-# Lint code
-flake8 src/ scripts/
+docker compose -f .devcontainer/docker-compose.yml up -d --build
 ```
 
-## Python Path
+```bash
+docker compose -f .devcontainer/docker-compose.yml exec dev bash
+```
 
-The project uses `package-mode = false` in `pyproject.toml` — Poetry only manages
-the dependency environment, it doesn't install `src` as a package. Scripts and
-tests work because they're run from the repository root (or insert it onto
-`sys.path` themselves), so `import src` resolves against the working directory:
+## Git and GitHub inside the container
+
+Set up automatically on container creation by
+[initialize.sh](initialize.sh) (runs on the host) and
+[post-create.sh](post-create.sh) (runs in the container):
+
+| What | How |
+|---|---|
+| **Git identity** | Your host's `user.name` / `user.email` are exported to `.devcontainer/.gitconfig.host` (gitignored) and included by the container's git config. Nothing else from the host config is copied. |
+| **`git push` over SSH** | Docker Desktop forwards the host's SSH agent to `/ssh-agent`. Your private key never enters the container. GitHub's host keys are added to `known_hosts` from `api.github.com/meta`. |
+| **`gh`** | Installed by the `github-cli` feature. Its config lives in the `instrument-isolation-app-gh` Docker volume, so you log in once and it survives rebuilds. |
+
+**One-time step:** log in to `gh` inside the container:
 
 ```bash
-python -c "import src; print(src.__version__)"
+gh auth login
+```
+
+Check that everything works:
+
+```bash
+git config user.email && ssh -T git@github.com; gh auth status
+```
+
+## What's included
+
+- **Python 3.12** and **Poetry**
+- **Git** and the **GitHub CLI**
+- **VS Code extensions:** Python, Pylance, debugpy, Ruff (formatter and
+  linter), GitLens, Jupyter, markdownlint, Claude Code
+- **Project dependencies:** installed with `poetry install --with dev` once
+  `pyproject.toml` exists (roadmap Phase 0). Until then the step is skipped.
+
+## Common commands
+
+These match the checks in [CI](../.github/workflows/ci.yml):
+
+```bash
+poetry run ruff check .
+```
+
+```bash
+poetry run ruff format --check .
+```
+
+```bash
+poetry run pytest
+```
+
+```bash
+npx markdownlint-cli2 "**/*.md"
 ```
 
 ## Troubleshooting
 
-**Container build fails**:
+**`git push` fails with "Permission denied (publickey)":**
 
-- Ensure Docker has enough disk space
-- Try `docker system prune` to clean up
+- On the host, check that your key is loaded: `ssh-add -l`. If not:
+  `ssh-add ~/.ssh/id_ed25519`.
+- The agent forwarding mount is specific to Docker Desktop for Mac. Other
+  Docker setups need a different `source` for the `/ssh-agent` mount in
+  [devcontainer.json](devcontainer.json).
 
-**GPU not detected**:
+**Commits have the wrong author:** set your identity on the host, then
+rebuild the container.
 
-- Verify NVIDIA Docker runtime: `docker run --rm --gpus all nvidia/cuda:12.0-base nvidia-smi`
-- Check CUDA version compatibility with PyTorch
+**Container build fails:**
 
-**Slow builds**:
-
-- Use BuildKit: `DOCKER_BUILDKIT=1 docker build ...`
-- Cache Docker layers by avoiding `pip install` changes
+- Ensure Docker has enough disk space.
+- Try `docker system prune` to clean up.
 
 ## Resources
 
-- [Dev Containers Documentation](https://containers.dev/)
-- [VS Code Remote Development](https://code.visualstudio.com/docs/remote/remote-overview)
-- [Docker Documentation](https://docs.docker.com/)
+- [Dev Containers documentation](https://containers.dev/)
+- [Dev Containers CLI](https://github.com/devcontainers/cli)
+- [Docker Desktop SSH agent forwarding](https://docs.docker.com/desktop/features/networking/#ssh-agent-forwarding)
