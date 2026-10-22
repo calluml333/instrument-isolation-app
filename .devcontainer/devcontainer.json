@@ -3,7 +3,9 @@
   "image": "mcr.microsoft.com/devcontainers/python:3.12",
   "features": {
     "ghcr.io/devcontainers/features/git:1": {},
-    "ghcr.io/devcontainers/features/github-cli:1": {}
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    // Node runs markdownlint-cli2, so docs are linted in here like CI does.
+    "ghcr.io/devcontainers/features/node:1": {}
   },
   "customizations": {
     "vscode": {
@@ -45,6 +47,8 @@
     "source=instrument-isolation-app-gh,target=/home/vscode/.config/gh,type=volume"
   ],
   "remoteEnv": {
-    "SSH_AUTH_SOCK": "/ssh-agent"
+    "SSH_AUTH_SOCK": "/ssh-agent",
+    // Project tools (`isolate`, ruff, pytest) work without `poetry run`.
+    "PATH": "${containerWorkspaceFolder}/.venv/bin:${containerEnv:PATH}"
   }
 }

@@ -29,12 +29,9 @@ fi
 sudo mkdir -p ~/.config/gh
 sudo chown -R "$(id -u):$(id -g)" ~/.config/gh
 
-# --- Python deps: only once the project has a pyproject.toml (Phase 0) -------
-python -m pip install --user --upgrade pip poetry
+# --- Python deps: pinned Poetry (keep in sync with ci.yml), venv in .venv ----
+POETRY_VERSION=2.5.1
+# The image's Python, not .venv's (remoteEnv puts .venv/bin first on PATH).
+/usr/local/bin/python -m pip install --user --upgrade pip "poetry==$POETRY_VERSION"
 export PATH="$HOME/.local/bin:$PATH"
-if [ -f pyproject.toml ]; then
-  poetry config virtualenvs.in-project true
-  poetry install --no-interaction --with dev
-else
-  echo "ℹ️  No pyproject.toml yet; skipping 'poetry install'."
-fi
+poetry install --no-interaction --with dev
