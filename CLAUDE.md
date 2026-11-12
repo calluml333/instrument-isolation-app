@@ -38,12 +38,14 @@ a brief file-sync delay on the bind mount, not corruption.
 Run all of these in the container before pushing (they match CI):
 
 ```bash
-poetry check --lock && ruff check . && ruff format --check . && pytest && npx markdownlint-cli2 "**/*.md"
+poetry check --lock && ruff check . && ruff format --check . && mypy && pytest && npx markdownlint-cli2 "**/*.md"
 ```
 
 - Tests must not use the network; pytest-socket blocks it. Never download
-  or commit model weights.
-- Warnings fail the test suite.
+  or commit model weights. Tests that need the real weights are marked
+  `weights` and only run with `pytest --run-weights`.
+- Warnings fail the test suite, and coverage must stay at or above 90%.
+- mypy is strict for `src/`.
 
 ## Git
 

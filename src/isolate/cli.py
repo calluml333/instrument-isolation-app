@@ -1,9 +1,53 @@
-"""The `isolate` command line: separate, app, eval and models (from Phase 1)."""
+"""The `isolate` command line: `separate` and `models` (SPEC §3 W1, R9)."""
 
 import argparse
+import shutil
+import sys
 from collections.abc import Sequence
+from dataclasses import replace
+from pathlib import Path
+from typing import Any, get_args
+
+from tqdm import tqdm
 
 from isolate import __version__
+from isolate.core.audio import (
+    Audio,
+    AudioLoadError,
+    BitDepth,
+    OutputFormat,
+    load,
+    save,
+)
+from isolate.core.device import DEVICES, DeviceUnavailableError
+from isolate.core.engine import PRESETS, Options, Progress, separate
+from isolate.models.loader import load_backend
+from isolate.models.registry import DEFAULT_MODEL, MODELS, UnknownModelError, get_model
+from isolate.models.weights import (
+    ChecksumError,
+    DownloadError,
+    DownloadProgress,
+    ensure_weights,
+    is_downloaded,
+)
+
+EXIT_ERROR = 1
+EXIT_INTERRUPTED = 130
+
+
+class UnknownStemError(ValueError):
+    """`--stems` named a stem the chosen model doesn't produce."""
+
+
+# Failures that are the user's input or environment, shown without a traceback.
+_EXPECTED_ERRORS = (
+    AudioLoadError,
+    ChecksumError,
+    DeviceUnavailableError,
+    DownloadError,
+    UnknownModelError,
+    UnknownStemError,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -14,12 +58,186 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"
     )
+    commands = parser.add_subparsers(dest="command", metavar="COMMAND")
+
+    sep = commands.add_parser(
+        "separate",
+        help="separate audio files into stems",
+        description="Separate audio files into one file per stem.",
+    )
+    sep.add_argument("inputs", nargs="+", type=Path, metavar="INPUT")
+    sep.add_argument(
+        "--out",
+        type=Path,
+        default=Path("stems"),
+        help="output folder; stems go in OUT/<input name>/ (default: stems)",
+    )
+    sep.add_argument(
+        "--stems",
+        type=lambda value: [stem.strip() for stem in value.split(",") if stem.strip()],
+        help="comma-separated stems to write (default: all the model's stems)",
+    )
+    sep.add_argument("--model", default=DEFAULT_MODEL, help="default: %(default)s")
+    sep.add_argument("--preset", choices=sorted(PRESETS), default="best")
+    sep.add_argument("--device", choices=DEVICES, default="auto")
+    sep.add_argument("--format", choices=get_args(OutputFormat), default="wav")
+    sep.add_argument(
+        "--bit-depth",
+        choices=("24", "32f"),
+        help="default: 32f for WAV, 24 for FLAC",
+    )
+    sep.add_argument(
+        "--no-residual",
+        dest="residual",
+        action="store_false",
+        help="don't add the leftover (mix minus stems) to 'other'",
+    )
+
+    models = commands.add_parser("models", help="list or download models")
+    model_commands = models.add_subparsers(
+        dest="models_command", metavar="ACTION", required=True
+    )
+    model_commands.add_parser("list", help="list the available models")
+    download = model_commands.add_parser("download", help="fetch a model's weights")
+    download.add_argument("name", metavar="NAME")
     return parser
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
-    parser.parse_args(argv)
-    # No subcommands until Phase 1, so a bare `isolate` just shows usage.
-    parser.print_help()
+    args = parser.parse_args(argv)
+    if args.command is None:
+        parser.print_help()
+        return 0
+    if args.command == "separate" and args.format == "flac" and args.bit_depth == "32f":
+        parser.error("FLAC has no 32-bit float mode; use --bit-depth 24")
+
+    try:
+        if args.command == "separate":
+            return _separate(args)
+        if args.models_command == "list":
+            return _models_list()
+        return _models_download(args.name)
+    except _EXPECTED_ERRORS as exc:
+        print(f"isolate: error: {exc}", file=sys.stderr)
+        return EXIT_ERROR
+    except KeyboardInterrupt:
+        print("isolate: interrupted", file=sys.stderr)
+        return EXIT_INTERRUPTED
+
+
+def _separate(args: argparse.Namespace) -> int:
+    spec = get_model(args.model)
+    if args.stems is not None:
+        unknown = sorted(set(args.stems) - set(spec.stems))
+        if unknown or not args.stems:
+            raise UnknownStemError(
+                f"{spec.name} has no stem(s) {', '.join(unknown) or '(none given)'}; "
+                f"it has {', '.join(spec.stems)}"
+            )
+    # Read every input first, so a bad file fails before the model loads.
+    songs = [(path, load(path)) for path in args.inputs]
+
+    backend = load_backend(spec.name, args.device, _download_bar(spec.name))
+    for path, audio in songs:
+        with tqdm(total=1.0, desc=path.name, unit="", file=sys.stderr) as bar:
+            stems = separate(
+                audio,
+                backend,
+                options=_options(args.preset, args.residual),
+                stems=args.stems,
+                progress=_advance(bar),
+            )
+        target = _write_stems(args.out, path.stem, stems, args.format, args.bit_depth)
+        print(target)
+    return 0
+
+
+def _advance(bar: "tqdm[Any]") -> Progress:
+    """Adapt the engine's fraction-done callback to a 0-1 progress bar."""
+
+    def update(fraction: float) -> None:
+        bar.update(fraction - bar.n)
+
+    return update
+
+
+def _options(preset: str, residual: bool) -> Options:
+    return replace(PRESETS[preset], residual=residual)
+
+
+def _write_stems(
+    out: Path,
+    song: str,
+    stems: dict[str, Audio],
+    fmt: OutputFormat,
+    bit_depth: BitDepth | None,
+) -> Path:
+    """Write into a hidden folder, then move into place, so an interrupted
+    run never leaves a half-written set of stems behind."""
+    target = out / song
+    partial = out / f".{song}.partial"
+    shutil.rmtree(partial, ignore_errors=True)
+    partial.mkdir(parents=True)
+    try:
+        for stem, audio in stems.items():
+            save(partial / f"{stem}.{fmt}", audio, fmt=fmt, bit_depth=bit_depth)
+        target.mkdir(parents=True, exist_ok=True)
+        for file in partial.iterdir():
+            file.replace(target / file.name)
+    finally:
+        shutil.rmtree(partial, ignore_errors=True)
+    return target
+
+
+class _DownloadBar:
+    """A byte progress bar that only appears once a download actually starts."""
+
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.bar: tqdm[Any] | None = None
+
+    def __call__(self, done: int, total: int) -> None:
+        bar = self.bar
+        if bar is None:
+            bar = self.bar = tqdm(
+                total=total,
+                desc=f"Downloading {self.name}",
+                unit="B",
+                unit_scale=True,
+                file=sys.stderr,
+            )
+        bar.update(done - bar.n)
+        if done >= total:
+            bar.close()
+
+
+def _download_bar(name: str) -> DownloadProgress:
+    return _DownloadBar(name)
+
+
+def _models_list() -> int:
+    rows = [("NAME", "STEMS", "LICENCE", "DOWNLOADED")]
+    for spec in MODELS.values():
+        rows.append(
+            (
+                spec.name,
+                ",".join(spec.stems),
+                spec.licence,
+                "yes" if is_downloaded(spec) else "no",
+            )
+        )
+    widths = [max(len(row[col]) for row in rows) for col in range(len(rows[0]))]
+    for row in rows:
+        print(
+            "  ".join(
+                cell.ljust(width) for cell, width in zip(row, widths, strict=True)
+            ).rstrip()
+        )
+    return 0
+
+
+def _models_download(name: str) -> int:
+    spec = get_model(name)
+    print(ensure_weights(spec, _download_bar(name)))
     return 0

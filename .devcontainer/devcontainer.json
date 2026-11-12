@@ -46,9 +46,15 @@
     // Keeps `gh auth login` across container rebuilds.
     "source=instrument-isolation-app-gh,target=/home/vscode/.config/gh,type=volume"
   ],
+  "containerEnv": {
+    // demucs depends on sphn, which has no Linux arm64 wheel, so it is built
+    // from source here. Its bundled Opus needs this to configure with CMake 4.
+    "CMAKE_POLICY_VERSION_MINIMUM": "3.5"
+  },
   "remoteEnv": {
     "SSH_AUTH_SOCK": "/ssh-agent",
-    // Project tools (`isolate`, ruff, pytest) work without `poetry run`.
-    "PATH": "${containerWorkspaceFolder}/.venv/bin:${containerEnv:PATH}"
+    // Project tools (`isolate`, ruff, pytest) work without `poetry run`, and
+    // Poetry (pip --user) is found by non-login `devcontainer exec` commands.
+    "PATH": "${containerWorkspaceFolder}/.venv/bin:/home/vscode/.local/bin:${containerEnv:PATH}"
   }
 }

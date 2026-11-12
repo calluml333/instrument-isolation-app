@@ -169,7 +169,7 @@ stems on its own, so it's the baseline (Phase 1) and the fallback.
 ### 4.2 Model backends and ensembles
 
 - M1. **Backend interface.** Every model sits behind one interface in
-  `isolate.core`: it takes a stereo waveform at 44.1 kHz and returns a dict of
+  `isolate.models` (§5.1): it takes a stereo waveform at 44.1 kHz and returns a dict of
   named stems at the same length. It also reports which stems it supports, its
   native sample rate and segment length. The engine, CLI and app only use this
   interface, so models can be added and compared without changing anything
@@ -263,10 +263,12 @@ the engine.
 ### 5.3 Model management
 
 - R8. Weights are downloaded on first use from the URL in the model registry
-  (M4), verified against a checksum, and cached in
+  (M4), verified against a full SHA-256, and cached in
   `~/.cache/isolate/models/`. The dev container bind-mounts the host's
   `~/.cache`, so downloads survive container rebuilds. No weights are
-  committed to the repo.
+  committed to the repo. Demucs weights come from the author's Hugging Face
+  repos as safetensors, pinned to a commit (`docs/models.md`), because the
+  original `.th` checkpoints are pickles.
 - R9. `isolate models list` shows the available models and ensembles, their
   stems, license and whether they're downloaded. `isolate models download
   <name>` fetches one ahead of time (e.g. for offline use or the demo build).

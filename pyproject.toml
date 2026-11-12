@@ -5,7 +5,15 @@ description = "Music source separation: split a stereo mix into drums, bass, gui
 authors = [{ name = "Callum Little", email = "callum.little.dev@gmail.com" }]
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
-dependencies = []
+dependencies = [
+    "demucs==4.1.0",
+    "numpy>=1.26,<3.0",
+    "soundfile>=0.13,<1.0",
+    "soxr>=1.0,<2.0",
+    # demucs caps torch at <2.3 on Intel macOS only; this project never runs there.
+    "torch>=2.15,<3.0; sys_platform != 'darwin' or platform_machine != 'x86_64'",
+    "tqdm>=4.66,<5.0",
+]
 
 [project.scripts]
 isolate = "isolate.cli:main"
@@ -14,11 +22,23 @@ isolate = "isolate.cli:main"
 packages = [{ include = "isolate", from = "src" }]
 requires-poetry = ">=2.0"
 
+# CPU-only torch: PyPI's x86-64 Linux wheels pull in several GB of CUDA
+# libraries (Phase 1 P1-D2).
+[tool.poetry.dependencies]
+torch = { source = "pytorch-cpu" }
+
+[[tool.poetry.source]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+priority = "explicit"
+
 [tool.poetry.group.dev.dependencies]
+mypy = "^2.4"
 pytest = "^9.1"
 pytest-cov = "^7.0"
 pytest-socket = "^0.8"
 ruff = "^0.17"
+types-tqdm = "^4.67"
 
 [build-system]
 requires = ["poetry-core>=2.0,<3.0"]
@@ -32,6 +52,21 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "B", "UP", "SIM", "RUF", "PT"]
 
+[tool.mypy]
+python_version = "3.12"
+files = ["src", "tests"]
+strict = true
+warn_unused_configs = true
+
+# Tests are type-checked, but needn't annotate every test function.
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disable_error_code = ["no-untyped-def"]
+
+[[tool.mypy.overrides]]
+module = ["soundfile", "soxr"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = [
@@ -39,8 +74,15 @@ addopts = [
     "--strict-markers",
     "--strict-config",
     "--cov=isolate",
+    "--cov-branch",
     "--cov-report=term-missing",
     "--disable-socket",
     "--allow-unix-socket",
 ]
 filterwarnings = ["error"]
+markers = [
+    "weights: uses the real model weights (downloads them); run with --run-weights",
+]
+
+[tool.coverage.report]
+fail_under = 90

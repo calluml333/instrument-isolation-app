@@ -216,3 +216,8 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Audio you separate locally, and the stems it produces: never committed
+# (likely copyrighted).
+/audio/
+/stems/
