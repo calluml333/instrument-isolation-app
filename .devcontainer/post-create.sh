@@ -29,9 +29,13 @@ fi
 sudo mkdir -p ~/.config/gh
 sudo chown -R "$(id -u):$(id -g)" ~/.config/gh
 
+# --- FFmpeg: the evaluation dataset (musdb, via stempeg) needs it -------------
+sudo apt-get update -qq
+sudo apt-get install -y -qq --no-install-recommends ffmpeg > /dev/null
+
 # --- Python deps: pinned Poetry (keep in sync with ci.yml), venv in .venv ----
 POETRY_VERSION=2.5.1
 # The image's Python, not .venv's (remoteEnv puts .venv/bin first on PATH).
 /usr/local/bin/python -m pip install --user --upgrade pip "poetry==$POETRY_VERSION"
 export PATH="$HOME/.local/bin:$PATH"
-poetry install --no-interaction --with dev
+poetry install --no-interaction --with dev,eval
