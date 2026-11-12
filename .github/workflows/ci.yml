@@ -67,3 +67,32 @@ jobs:
       # Coverage must be at least 90% (pyproject.toml).
       - name: Pytest
         run: poetry run pytest
+
+  weights:
+    name: Real-weights tests
+    runs-on: ubuntu-latest
+    env:
+      POETRY_VERSION: "2.5.1"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Poetry
+        run: pipx install "poetry==$POETRY_VERSION"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: poetry
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --with dev
+
+      # The registry pins every weights file, so its hash is a safe cache key.
+      - name: Cache model weights
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/isolate/models
+          key: weights-${{ hashFiles('src/isolate/models/registry.py') }}
+
+      - name: Pytest (weights only)
+        run: poetry run pytest --run-weights -m weights --no-cov

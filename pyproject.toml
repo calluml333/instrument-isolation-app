@@ -79,6 +79,9 @@ addopts = [
     "--allow-unix-socket",
 ]
 filterwarnings = ["error"]
+markers = [
+    "weights: uses the real model weights (downloads them); run with --run-weights",
+]
 
 [tool.coverage.report]
 fail_under = 90
