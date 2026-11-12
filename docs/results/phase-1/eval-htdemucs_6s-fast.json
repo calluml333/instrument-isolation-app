@@ -1,0 +1,848 @@
+{
+  "model": "htdemucs_6s",
+  "preset": "fast",
+  "options": {
+    "overlap": 0.25,
+    "shifts": 0,
+    "residual": true,
+    "seed": 0
+  },
+  "date": "2026-11-12",
+  "wall_seconds": 330.5,
+  "versions": {
+    "python": "3.12.15",
+    "isolate": "0.1.0",
+    "torch": "2.15.0+cpu",
+    "demucs": "4.1.0",
+    "numpy": "2.5.4",
+    "museval": "0.4.1"
+  },
+  "summary": {
+    "drums": {
+      "sdr": 9.233285411273373,
+      "si_sdr": 8.685159759775576,
+      "scored": 50,
+      "excluded": 0
+    },
+    "bass": {
+      "sdr": 8.482583673232064,
+      "si_sdr": 7.514292668388308,
+      "scored": 50,
+      "excluded": 0
+    },
+    "other": {
+      "sdr": 5.296436934909536,
+      "si_sdr": 3.7501439426559044,
+      "scored": 50,
+      "excluded": 0
+    },
+    "vocals": {
+      "sdr": 8.671350962703935,
+      "si_sdr": 7.991695421169874,
+      "scored": 50,
+      "excluded": 0
+    }
+  },
+  "tracks": [
+    {
+      "name": "AM Contra - Heart Peripheral",
+      "sdr": {
+        "drums": 7.705,
+        "bass": 3.799,
+        "other": 0.541,
+        "vocals": 11.637
+      },
+      "si_sdr": {
+        "drums": 6.699,
+        "bass": 1.135,
+        "other": -8.625,
+        "vocals": 10.669
+      },
+      "seconds": 7.19
+    },
+    {
+      "name": "Al James - Schoolboy Facination",
+      "sdr": {
+        "drums": 6.145,
+        "bass": 12.959,
+        "other": 5.133,
+        "vocals": 9.345
+      },
+      "si_sdr": {
+        "drums": 5.415,
+        "bass": 12.64,
+        "other": 3.885,
+        "vocals": 8.778
+      },
+      "seconds": 5.83
+    },
+    {
+      "name": "Angels In Amplifiers - I'm Alright",
+      "sdr": {
+        "drums": 6.676,
+        "bass": 10.275,
+        "other": 7.449,
+        "vocals": 10.685
+      },
+      "si_sdr": {
+        "drums": 4.748,
+        "bass": 8.933,
+        "other": 6.74,
+        "vocals": 11.171
+      },
+      "seconds": 5.93
+    },
+    {
+      "name": "Arise - Run Run Run",
+      "sdr": {
+        "drums": 5.442,
+        "bass": 1.742,
+        "other": 1.27,
+        "vocals": 9.345
+      },
+      "si_sdr": {
+        "drums": 5.187,
+        "bass": 1.925,
+        "other": -4.699,
+        "vocals": 9.065
+      },
+      "seconds": 6.0
+    },
+    {
+      "name": "BKS - Bulldozer",
+      "sdr": {
+        "drums": 10.12,
+        "bass": 8.056,
+        "other": 4.732,
+        "vocals": 5.993
+      },
+      "si_sdr": {
+        "drums": 8.426,
+        "bass": 6.764,
+        "other": 2.654,
+        "vocals": 5.063
+      },
+      "seconds": 6.13
+    },
+    {
+      "name": "BKS - Too Much",
+      "sdr": {
+        "drums": 9.466,
+        "bass": 13.061,
+        "other": 5.815,
+        "vocals": 11.531
+      },
+      "si_sdr": {
+        "drums": 9.054,
+        "bass": 11.688,
+        "other": 4.844,
+        "vocals": 11.419
+      },
+      "seconds": 5.99
+    },
+    {
+      "name": "Ben Carrigan - We'll Talk About It All Tonight",
+      "sdr": {
+        "drums": 10.0,
+        "bass": 15.584,
+        "other": 5.561,
+        "vocals": 6.103
+      },
+      "si_sdr": {
+        "drums": 9.118,
+        "bass": 14.025,
+        "other": 3.861,
+        "vocals": 4.921
+      },
+      "seconds": 6.02
+    },
+    {
+      "name": "Bobby Nobody - Stitch Up",
+      "sdr": {
+        "drums": 5.44,
+        "bass": 5.45,
+        "other": 6.125,
+        "vocals": 9.823
+      },
+      "si_sdr": {
+        "drums": 4.212,
+        "bass": 3.373,
+        "other": 5.032,
+        "vocals": 8.704
+      },
+      "seconds": 5.99
+    },
+    {
+      "name": "Buitraker - Revo X",
+      "sdr": {
+        "drums": 13.462,
+        "bass": 10.538,
+        "other": 7.458,
+        "vocals": 4.574
+      },
+      "si_sdr": {
+        "drums": 13.26,
+        "bass": 10.649,
+        "other": 6.335,
+        "vocals": 2.572
+      },
+      "seconds": 5.95
+    },
+    {
+      "name": "Carlos Gonzalez - A Place For Us",
+      "sdr": {
+        "drums": 6.336,
+        "bass": -0.722,
+        "other": 3.236,
+        "vocals": 8.192
+      },
+      "si_sdr": {
+        "drums": 4.013,
+        "bass": -11.25,
+        "other": 0.783,
+        "vocals": 6.452
+      },
+      "seconds": 5.96
+    },
+    {
+      "name": "Cristina Vane - So Easy",
+      "sdr": {
+        "drums": 13.601,
+        "bass": 3.25,
+        "other": 4.433,
+        "vocals": 16.19
+      },
+      "si_sdr": {
+        "drums": 13.558,
+        "bass": 1.417,
+        "other": 2.536,
+        "vocals": 15.715
+      },
+      "seconds": 5.85
+    },
+    {
+      "name": "Detsky Sad - Walkie Talkie",
+      "sdr": {
+        "drums": 9.603,
+        "bass": 4.414,
+        "other": 1.434,
+        "vocals": 10.477
+      },
+      "si_sdr": {
+        "drums": 8.877,
+        "bass": 1.366,
+        "other": -3.575,
+        "vocals": 9.503
+      },
+      "seconds": 5.95
+    },
+    {
+      "name": "Enda Reilly - Cur An Long Ag Seol",
+      "sdr": {
+        "drums": 14.27,
+        "bass": 9.38,
+        "other": 8.641,
+        "vocals": 12.348
+      },
+      "si_sdr": {
+        "drums": 13.16,
+        "bass": 8.5,
+        "other": 7.27,
+        "vocals": 11.889
+      },
+      "seconds": 5.9
+    },
+    {
+      "name": "Forkupines - Semantics",
+      "sdr": {
+        "drums": 8.34,
+        "bass": 8.91,
+        "other": 6.986,
+        "vocals": 8.843
+      },
+      "si_sdr": {
+        "drums": 9.971,
+        "bass": 7.871,
+        "other": 5.351,
+        "vocals": 8.48
+      },
+      "seconds": 6.15
+    },
+    {
+      "name": "Georgia Wonder - Siren",
+      "sdr": {
+        "drums": 9.607,
+        "bass": 9.494,
+        "other": 6.052,
+        "vocals": 8.936
+      },
+      "si_sdr": {
+        "drums": 9.078,
+        "bass": 9.317,
+        "other": 3.192,
+        "vocals": 5.787
+      },
+      "seconds": 5.85
+    },
+    {
+      "name": "Girls Under Glass - We Feel Alright",
+      "sdr": {
+        "drums": 7.917,
+        "bass": 1.592,
+        "other": 3.667,
+        "vocals": 5.72
+      },
+      "si_sdr": {
+        "drums": 7.051,
+        "bass": -2.615,
+        "other": 1.672,
+        "vocals": 4.395
+      },
+      "seconds": 5.92
+    },
+    {
+      "name": "Hollow Ground - Ill Fate",
+      "sdr": {
+        "drums": 4.182,
+        "bass": 1.908,
+        "other": 3.154,
+        "vocals": 7.262
+      },
+      "si_sdr": {
+        "drums": 1.714,
+        "bass": -2.542,
+        "other": 0.126,
+        "vocals": 6.165
+      },
+      "seconds": 5.99
+    },
+    {
+      "name": "James Elder & Mark M Thompson - The English Actor",
+      "sdr": {
+        "drums": 5.932,
+        "bass": 10.497,
+        "other": 5.915,
+        "vocals": 6.695
+      },
+      "si_sdr": {
+        "drums": 5.582,
+        "bass": 9.802,
+        "other": 4.113,
+        "vocals": 4.582
+      },
+      "seconds": 5.98
+    },
+    {
+      "name": "Juliet's Rescue - Heartbeats",
+      "sdr": {
+        "drums": 17.77,
+        "bass": -3.76,
+        "other": 4.196,
+        "vocals": 11.308
+      },
+      "si_sdr": {
+        "drums": 17.852,
+        "bass": -12.17,
+        "other": 1.752,
+        "vocals": 10.754
+      },
+      "seconds": 5.97
+    },
+    {
+      "name": "Little Chicago's Finest - My Own",
+      "sdr": {
+        "drums": 13.156,
+        "bass": 15.998,
+        "other": 6.373,
+        "vocals": 9.678
+      },
+      "si_sdr": {
+        "drums": 13.311,
+        "bass": 15.36,
+        "other": 5.397,
+        "vocals": 8.937
+      },
+      "seconds": 5.79
+    },
+    {
+      "name": "Louis Cressy Band - Good Time",
+      "sdr": {
+        "drums": 7.949,
+        "bass": 11.029,
+        "other": 8.703,
+        "vocals": 9.307
+      },
+      "si_sdr": {
+        "drums": 6.887,
+        "bass": 7.831,
+        "other": 7.067,
+        "vocals": 7.192
+      },
+      "seconds": 6.06
+    },
+    {
+      "name": "Lyndsey Ollard - Catching Up",
+      "sdr": {
+        "drums": 8.682,
+        "bass": 10.685,
+        "other": 5.953,
+        "vocals": 13.5
+      },
+      "si_sdr": {
+        "drums": 7.773,
+        "bass": 9.818,
+        "other": 3.251,
+        "vocals": 11.535
+      },
+      "seconds": 5.84
+    },
+    {
+      "name": "M.E.R.C. Music - Knockout",
+      "sdr": {
+        "drums": 9.099,
+        "bass": 13.276,
+        "other": 4.77,
+        "vocals": 7.996
+      },
+      "si_sdr": {
+        "drums": 8.629,
+        "bass": 12.57,
+        "other": 3.64,
+        "vocals": 7.213
+      },
+      "seconds": 5.82
+    },
+    {
+      "name": "Moosmusic - Big Dummy Shake",
+      "sdr": {
+        "drums": 11.314,
+        "bass": 12.299,
+        "other": 5.444,
+        "vocals": 13.68
+      },
+      "si_sdr": {
+        "drums": 10.602,
+        "bass": 10.899,
+        "other": 4.976,
+        "vocals": 12.22
+      },
+      "seconds": 5.97
+    },
+    {
+      "name": "Motor Tapes - Shore",
+      "sdr": {
+        "drums": 10.363,
+        "bass": 9.096,
+        "other": 9.85,
+        "vocals": 0.085
+      },
+      "si_sdr": {
+        "drums": 8.741,
+        "bass": 7.768,
+        "other": 9.213,
+        "vocals": -12.302
+      },
+      "seconds": 6.01
+    },
+    {
+      "name": "Mu - Too Bright",
+      "sdr": {
+        "drums": 15.727,
+        "bass": 7.334,
+        "other": 7.712,
+        "vocals": 14.79
+      },
+      "si_sdr": {
+        "drums": 15.882,
+        "bass": 7.26,
+        "other": 6.654,
+        "vocals": 14.882
+      },
+      "seconds": 5.71
+    },
+    {
+      "name": "Nerve 9 - Pray For The Rain",
+      "sdr": {
+        "drums": 13.135,
+        "bass": 4.227,
+        "other": 3.361,
+        "vocals": 7.451
+      },
+      "si_sdr": {
+        "drums": 12.106,
+        "bass": 3.38,
+        "other": 0.817,
+        "vocals": 5.824
+      },
+      "seconds": 5.85
+    },
+    {
+      "name": "PR - Happy Daze",
+      "sdr": {
+        "drums": 9.562,
+        "bass": 2.632,
+        "other": 2.897,
+        "vocals": -3.018
+      },
+      "si_sdr": {
+        "drums": 9.617,
+        "bass": -0.435,
+        "other": 1.225,
+        "vocals": 0.657
+      },
+      "seconds": 5.59
+    },
+    {
+      "name": "PR - Oh No",
+      "sdr": {
+        "drums": 7.596,
+        "bass": 0.003,
+        "other": 0.026,
+        "vocals": 0.217
+      },
+      "si_sdr": {
+        "drums": 7.238,
+        "bass": -18.129,
+        "other": -3.625,
+        "vocals": -0.551
+      },
+      "seconds": 5.47
+    },
+    {
+      "name": "Punkdisco - Oral Hygiene",
+      "sdr": {
+        "drums": 4.344,
+        "bass": 4.254,
+        "other": 1.548,
+        "vocals": 8.5
+      },
+      "si_sdr": {
+        "drums": 4.715,
+        "bass": 3.195,
+        "other": 0.749,
+        "vocals": 8.098
+      },
+      "seconds": 5.45
+    },
+    {
+      "name": "Raft Monk - Tiring",
+      "sdr": {
+        "drums": 7.841,
+        "bass": 5.735,
+        "other": 3.502,
+        "vocals": 6.79
+      },
+      "si_sdr": {
+        "drums": 6.838,
+        "bass": 4.909,
+        "other": 2.177,
+        "vocals": 5.732
+      },
+      "seconds": 5.43
+    },
+    {
+      "name": "Sambasevam Shanmugam - Kaathaadi",
+      "sdr": {
+        "drums": 14.775,
+        "bass": 10.249,
+        "other": 6.598,
+        "vocals": 11.95
+      },
+      "si_sdr": {
+        "drums": 14.34,
+        "bass": 9.865,
+        "other": 4.667,
+        "vocals": 14.091
+      },
+      "seconds": 5.44
+    },
+    {
+      "name": "Secretariat - Borderline",
+      "sdr": {
+        "drums": 4.996,
+        "bass": 6.732,
+        "other": 7.829,
+        "vocals": 8.326
+      },
+      "si_sdr": {
+        "drums": 3.279,
+        "bass": 4.701,
+        "other": 6.431,
+        "vocals": 7.885
+      },
+      "seconds": 5.4
+    },
+    {
+      "name": "Secretariat - Over The Top",
+      "sdr": {
+        "drums": 8.819,
+        "bass": 10.476,
+        "other": 5.177,
+        "vocals": 11.018
+      },
+      "si_sdr": {
+        "drums": 8.129,
+        "bass": 10.416,
+        "other": 3.867,
+        "vocals": 10.41
+      },
+      "seconds": 5.46
+    },
+    {
+      "name": "Side Effects Project - Sing With Me",
+      "sdr": {
+        "drums": 14.263,
+        "bass": 13.996,
+        "other": 2.82,
+        "vocals": 12.85
+      },
+      "si_sdr": {
+        "drums": 13.171,
+        "bass": 14.06,
+        "other": 2.121,
+        "vocals": 12.584
+      },
+      "seconds": 5.87
+    },
+    {
+      "name": "Signe Jakobsen - What Have You Done To Me",
+      "sdr": {
+        "drums": 4.304,
+        "bass": -3.069,
+        "other": 2.931,
+        "vocals": 11.045
+      },
+      "si_sdr": {
+        "drums": 2.363,
+        "bass": -4.57,
+        "other": 0.319,
+        "vocals": 10.94
+      },
+      "seconds": 5.55
+    },
+    {
+      "name": "Skelpolu - Resurrection",
+      "sdr": {
+        "drums": 10.349,
+        "bass": 13.542,
+        "other": 0.837,
+        "vocals": 3.151
+      },
+      "si_sdr": {
+        "drums": 9.783,
+        "bass": 12.106,
+        "other": -4.389,
+        "vocals": 0.242
+      },
+      "seconds": 5.44
+    },
+    {
+      "name": "Speak Softly - Broken Man",
+      "sdr": {
+        "drums": 8.244,
+        "bass": 17.288,
+        "other": 7.299,
+        "vocals": 7.408
+      },
+      "si_sdr": {
+        "drums": 7.508,
+        "bass": 17.462,
+        "other": 6.483,
+        "vocals": 6.063
+      },
+      "seconds": 5.79
+    },
+    {
+      "name": "Speak Softly - Like Horses",
+      "sdr": {
+        "drums": 6.859,
+        "bass": 21.407,
+        "other": 7.223,
+        "vocals": 7.942
+      },
+      "si_sdr": {
+        "drums": 5.636,
+        "bass": 21.459,
+        "other": 6.317,
+        "vocals": 6.757
+      },
+      "seconds": 5.41
+    },
+    {
+      "name": "The Doppler Shift - Atrophy",
+      "sdr": {
+        "drums": 11.185,
+        "bass": 5.148,
+        "other": 5.416,
+        "vocals": 7.654
+      },
+      "si_sdr": {
+        "drums": 10.133,
+        "bass": 3.415,
+        "other": 3.912,
+        "vocals": 6.734
+      },
+      "seconds": 5.41
+    },
+    {
+      "name": "The Easton Ellises (Baumi) - SDRNR",
+      "sdr": {
+        "drums": 9.869,
+        "bass": 6.397,
+        "other": 0.805,
+        "vocals": 5.26
+      },
+      "si_sdr": {
+        "drums": 8.778,
+        "bass": 5.296,
+        "other": -6.334,
+        "vocals": 4.318
+      },
+      "seconds": 5.54
+    },
+    {
+      "name": "The Easton Ellises - Falcon 69",
+      "sdr": {
+        "drums": 8.683,
+        "bass": 6.409,
+        "other": 2.798,
+        "vocals": 4.37
+      },
+      "si_sdr": {
+        "drums": 7.985,
+        "bass": 6.223,
+        "other": -0.06,
+        "vocals": 0.643
+      },
+      "seconds": 5.52
+    },
+    {
+      "name": "The Long Wait - Dark Horses",
+      "sdr": {
+        "drums": 8.74,
+        "bass": 11.385,
+        "other": 6.459,
+        "vocals": 9.104
+      },
+      "si_sdr": {
+        "drums": 6.967,
+        "bass": 10.608,
+        "other": 4.964,
+        "vocals": 8.7
+      },
+      "seconds": 5.61
+    },
+    {
+      "name": "The Mountaineering Club - Mallory",
+      "sdr": {
+        "drums": 11.604,
+        "bass": 12.566,
+        "other": 4.701,
+        "vocals": 9.433
+      },
+      "si_sdr": {
+        "drums": 11.075,
+        "bass": 12.641,
+        "other": 2.827,
+        "vocals": 8.701
+      },
+      "seconds": 6.27
+    },
+    {
+      "name": "The Sunshine Garcia Band - For I Am The Moon",
+      "sdr": {
+        "drums": 10.513,
+        "bass": 15.0,
+        "other": 8.663,
+        "vocals": 12.3
+      },
+      "si_sdr": {
+        "drums": 10.035,
+        "bass": 13.619,
+        "other": 7.499,
+        "vocals": 11.987
+      },
+      "seconds": 5.93
+    },
+    {
+      "name": "Timboz - Pony",
+      "sdr": {
+        "drums": 1.381,
+        "bass": -0.603,
+        "other": 7.738,
+        "vocals": 5.587
+      },
+      "si_sdr": {
+        "drums": -3.482,
+        "bass": -3.88,
+        "other": 7.217,
+        "vocals": 4.839
+      },
+      "seconds": 5.53
+    },
+    {
+      "name": "Tom McKenzie - Directions",
+      "sdr": {
+        "drums": 15.432,
+        "bass": 1.061,
+        "other": -3.48,
+        "vocals": 8.104
+      },
+      "si_sdr": {
+        "drums": 15.27,
+        "bass": -4.562,
+        "other": -5.068,
+        "vocals": 8.102
+      },
+      "seconds": 5.59
+    },
+    {
+      "name": "Triviul feat. The Fiend - Widow",
+      "sdr": {
+        "drums": 5.846,
+        "bass": 15.689,
+        "other": 4.311,
+        "vocals": 10.948
+      },
+      "si_sdr": {
+        "drums": 4.142,
+        "bass": 15.378,
+        "other": 2.016,
+        "vocals": 10.226
+      },
+      "seconds": 5.54
+    },
+    {
+      "name": "We Fell From The Sky - Not You",
+      "sdr": {
+        "drums": 11.399,
+        "bass": 4.871,
+        "other": 8.062,
+        "vocals": 6.659
+      },
+      "si_sdr": {
+        "drums": 11.441,
+        "bass": 2.388,
+        "other": 7.066,
+        "vocals": 6.13
+      },
+      "seconds": 5.39
+    },
+    {
+      "name": "Zeno - Signs",
+      "sdr": {
+        "drums": 9.367,
+        "bass": 5.49,
+        "other": 6.726,
+        "vocals": 8.32
+      },
+      "si_sdr": {
+        "drums": 9.027,
+        "bass": 3.056,
+        "other": 5.14,
+        "vocals": 7.744
+      },
+      "seconds": 5.66
+    }
+  ]
+}

@@ -1,0 +1,12 @@
+{
+  "model": "htdemucs_6s",
+  "preset": "fast",
+  "duration_seconds": 180.0,
+  "load_seconds": 0.2138829169998644,
+  "separate_seconds": 45.388479478999216,
+  "peak_rss_mb": 2429.72265625,
+  "cpus": 12,
+  "torch_threads": 12,
+  "memory_limit_mb": 7836.5,
+  "real_time_factor": 0.25215821932777344
+}

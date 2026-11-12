@@ -11,8 +11,9 @@ See [docs/SPEC.md](docs/SPEC.md) for the full project specification, and
 
 ## Status
 
-Phase 1 (baseline), part 1a: `isolate separate` produces six stems with
-`htdemucs_6s`. Measured results come with part 1b. See the roadmap in
+Phase 1 (baseline): `isolate separate` produces six stems with
+`htdemucs_6s`, and `isolate eval` and `isolate bench` measure it (see Results
+below). Next is the local web app (Phase 2). See the roadmap in
 [SPEC §7](docs/SPEC.md#7-phased-roadmap) and the phase specs in
 [docs/specs/](docs/specs/).
 
@@ -85,6 +86,39 @@ isolate models list
 ```
 
 The weights are for research use only; see [docs/models.md](docs/models.md).
+
+**Long songs:** the whole song is held in memory for now, so peak memory
+grows by about 0.44 GB per minute of audio. Up to about 6 minutes stays
+under 4 GB. Much longer files can exceed the memory Docker Desktop gives the
+container (Settings → Resources); constant-memory streaming is planned for
+Phase 4.
+
+## Results
+
+`htdemucs_6s` on the MUSDB18 7-second sample set (50 test tracks), median
+SDR in dB, with timings for a 3-minute song on CPU in the dev container (M4
+Pro). Details and method: [docs/results/phase-1-baseline.md](docs/results/phase-1-baseline.md).
+
+| Preset | `drums` | `bass` | `other` | `vocals` | 3-minute song | Peak memory |
+|---|---|---|---|---|---|---|
+| `fast` | 9.23 | 8.48 | 5.30 | 8.67 | 45 s | 2.4 GB |
+| `best` | 9.21 | 8.58 | 5.45 | 8.83 | 85 s | 2.5 GB |
+
+`other` includes the model's `guitar` and `piano`, which MUSDB18 can't score
+separately.
+
+To score a model or time it yourself:
+
+```bash
+isolate eval --preset fast --out results.md
+```
+
+```bash
+isolate bench --preset fast --duration 180
+```
+
+`isolate eval` downloads the MUSDB18 7-second sample set (147 MB, research
+use only) into `~/.cache/isolate/datasets/` on first use.
 
 ## Checks
 
