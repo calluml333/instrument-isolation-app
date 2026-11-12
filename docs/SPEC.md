@@ -367,14 +367,18 @@ for later if Gradio's components become limiting (§11).
 
 ### 6.5 Non-functional requirements
 
-- N1. **Local speed:** a 3-minute stereo song with the Fast preset, on CPU in
-  the dev container on the M4 Pro. The target is set from the Phase 1
-  baseline measurement: the original ≤ 60 s target assumed the GPU (MPS),
-  which Docker can't use (§4.4).
+- N1. **Local speed:** a 3-minute stereo song separates in **≤ 60 s** with
+  the Fast preset, on CPU in the dev container on the M4 Pro. Stretch:
+  ≤ 30 s. Set from the Phase 1 baseline, which measured 45 s
+  (`docs/results/phase-1-baseline.md`); the original ≤ 60 s assumed the GPU
+  (MPS), which Docker can't use (§4.4).
 - N2. **Demo speed:** a 30-second clip separates in **≤ 90 s** on the Spaces
   free CPU tier.
 - N3. **Memory:** peak RAM ≤ 4 GB during separation, whatever the song length
-  (chunking, R2).
+  (chunking, R2). *Phase 1 status: met up to about 6½ minutes (2.4 GB for 3
+  minutes). Longer songs exceed it, and a 20-minute song exceeds the
+  container's 7.8 GB, because the whole song and every stem are held in
+  memory. Constant-memory streaming is Phase 4 work.*
 - N4. **Robustness:** errors in decoding or inference show in the UI as a
   readable message. They never crash the server or leave temp files behind.
 - N5. **Privacy:** local mode makes no network requests apart from the
@@ -396,7 +400,7 @@ product that already works.
 | **1. Baseline** | Backend interface + registry (M1, M4); `htdemucs_6s` backend; `isolate.core` engine; `isolate separate` CLI; evaluation harness on MUSDB18 samples (§8); coverage gate and type checking in CI | Baseline results table (§8); N1 speed measured and its target set |
 | **2. Local app v1** | Gradio app in local mode: A1–A8 | Full W2 workflow works, ending with stems in both Reaper and Logic |
 | **3. Model comparison** | `htdemucs`, `htdemucs_ft` and ensemble backends (M2); comparison report; default chosen per M3 | Ensemble beats `htdemucs_6s` alone on the core stems, or the report shows why it doesn't; Fast/Best presets set from the results |
-| **4. Performance** | Quantisation and export experiments (§4.3); benchmark report | N2 met on CPU with a quality cost that's reported and accepted |
+| **4. Performance** | Quantisation and export experiments (§4.3); constant-memory streaming (read, separate and write a song in chunks); benchmark report | N2 met on CPU with a quality cost that's reported and accepted; N3 met for a 20-minute song |
 | **5. Public demo** | Demo mode (§6.4) on Hugging Face Spaces; example clips; CI deploy; README with link, results and screenshots | Link works from a fresh browser; N2 met on Spaces; uploads confirmed deleted |
 | **6. Polish** | Synchronised stem mixer (mute/solo/gain); waveform view | Mixer playback stays in sync over a full song |
 | **7. Stretch** | RoFormer backend (if a clearly licensed checkpoint exists); Reaper ReaScript integration; in-browser inference (WebGPU); fine-tuning (Appendix B); DAW plugin (Appendix A) | — |
@@ -491,6 +495,9 @@ runs.
 - **2026-10-22 — Model licences:** the Demucs weights are research-use only
   (`docs/models.md`). Accepted as-is, because this is a non-commercial
   learning/portfolio piece.
+- **2026-11-12 — N1 target:** ≤ 60 s for a 3-minute song with the Fast
+  preset on CPU in the dev container (stretch ≤ 30 s), from the Phase 1
+  baseline of 45 s. Approved by the owner.
 
 ### Open
 

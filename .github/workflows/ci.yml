@@ -52,8 +52,12 @@ jobs:
       - name: Check lock file
         run: poetry check --lock
 
+      # The evaluation dataset loader (musdb, via stempeg) needs FFmpeg.
+      - name: Install FFmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg
+
       - name: Install dependencies
-        run: poetry install --no-interaction --with dev
+        run: poetry install --no-interaction --with dev,eval
 
       - name: Ruff lint
         run: poetry run ruff check .

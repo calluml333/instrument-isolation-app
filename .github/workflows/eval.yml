@@ -1,0 +1,76 @@
+name: Eval
+
+# Separation-quality regression check (SPEC §9): scores htdemucs_6s on a few
+# fixed MUSDB18 sample tracks and fails if any core stem's median SDR drops
+# more than the tolerance in tests/data/regression-baseline.json. Only runs
+# when something that can change the scores changes.
+on:
+  pull_request:
+    paths:
+      - "src/isolate/core/**"
+      - "src/isolate/models/**"
+      - "src/isolate/eval/**"
+      - "pyproject.toml"
+      - "poetry.lock"
+      - "tests/data/regression-baseline.json"
+      - "tests/test_regression.py"
+      - ".github/workflows/eval.yml"
+  push:
+    branches: [main]
+    paths:
+      - "src/isolate/core/**"
+      - "src/isolate/models/**"
+      - "src/isolate/eval/**"
+      - "pyproject.toml"
+      - "poetry.lock"
+      - "tests/data/regression-baseline.json"
+      - "tests/test_regression.py"
+      - ".github/workflows/eval.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  regression:
+    name: SDR regression check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      POETRY_VERSION: "2.5.1"
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Poetry
+        run: pipx install "poetry==$POETRY_VERSION"
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: poetry
+
+      # musdb (via stempeg) decodes the dataset's .stem.mp4 files with FFmpeg.
+      - name: Install FFmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ffmpeg
+
+      - name: Install dependencies
+        run: poetry install --no-interaction --with dev,eval
+
+      - name: Cache model weights
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/isolate/models
+          key: weights-${{ hashFiles('src/isolate/models/registry.py') }}
+
+      # The sample set never changes upstream (a fixed GitHub release asset).
+      - name: Cache MUSDB18 sample set
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/isolate/datasets/musdb18-7
+          key: musdb18-7-v0.4.0
+
+      - name: Pytest (regression only)
+        run: poetry run pytest --run-weights -m regression --no-cov

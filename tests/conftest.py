@@ -17,22 +17,31 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     )
 
 
+# Tests that need the real weights (and, for regression, the MUSDB18 sample
+# set): skipped unless --run-weights is given.
+ONLINE_MARKERS = ("weights", "regression")
+
+
+def _is_online(keywords: pytest.Item | pytest.FixtureRequest) -> bool:
+    return any(marker in keywords.keywords for marker in ONLINE_MARKERS)
+
+
 def pytest_collection_modifyitems(
     config: pytest.Config, items: list[pytest.Item]
 ) -> None:
     run_weights = config.getoption("--run-weights")
     skip = pytest.mark.skip(reason="needs real model weights; use --run-weights")
     for item in items:
-        if "weights" not in item.keywords:
+        if not _is_online(item):
             continue
-        # Real-weights tests may download them; everything else stays offline.
+        # Online tests may download; everything else stays offline.
         item.add_marker(pytest.mark.enable_socket if run_weights else skip)
 
 
 @pytest.fixture(autouse=True)
 def isolated_cache(tmp_path_factory, monkeypatch, request):
-    """Every test gets its own cache, except real-weights tests (CI caches it)."""
-    if "weights" not in request.keywords:
+    """Every test gets its own cache, except online tests (CI caches theirs)."""
+    if not _is_online(request):
         monkeypatch.setenv("ISOLATE_CACHE_DIR", str(tmp_path_factory.mktemp("cache")))
 
 

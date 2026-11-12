@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-11-12; 1a implemented (PR 11), 1b next |
+| **Status** | Implemented: 1a (PR 11), 1b (PR 12) |
 | **Phase** | 1 (docs/SPEC.md §7) |
 | **Owner** | Callum Little |
 | **Last updated** | 2026-11-12 |
@@ -86,9 +86,9 @@ default and run in their own CI job (P1-R15). Every other test runs offline.
 | ID | Requirement | Acceptance (how it is verified) | Traces to |
 |---|---|---|---|
 | P1-R18 | **Dataset.** `isolate.eval.musdb` downloads the MUSDB18 7-second sample set (147 MB) on first use into `~/.cache/isolate/datasets/musdb18-7/` with the `musdb` package. It yields the 50 test-split tracks as mixture plus `drums, bass, other, vocals` at 44.1 kHz. `ffmpeg` is installed in the dev container and CI, because `musdb` needs it to decode stems. | A `weights`-marked test (it needs the network) downloads and reads the set in the `eval` CI job. An offline unit test uses a 2-track fake dataset on disk. | SPEC §8 |
-| P1-R19 | **Metrics.** Per-stem SDR with museval (BSSEval v4, 1 s windows, median over windows, then median over tracks), and SI-SDR (own implementation, whole clip, median over tracks). Silent reference stems are excluded from that stem's median, and the count of excluded tracks is reported. | `tests/test_metrics.py`: SI-SDR of a signal against itself is ≥ 100 dB; against itself scaled ×0.5 also ≥ 100 dB (scale-invariant); known values for signal plus noise at a set SNR (±0.1 dB). | SPEC §8 |
-| P1-R20 | **`isolate eval`.** `isolate eval --model NAME --preset P [--tracks N] [--out FILE]` separates the test split and writes a Markdown report (per-stem SDR and SI-SDR, track count, model, preset, versions, date, wall time) plus a JSON file of per-track scores beside it. | `tests/test_cli_eval.py` with the fake dataset and stand-in model. | SPEC §8 |
-| P1-R21 | **Benchmark.** `isolate eval bench --duration 180 --preset P` separates a synthetic 3-minute stereo signal (speed doesn't depend on content) in a subprocess. It reports wall time, real-time factor and peak RSS, plus the CPU count and the container's memory limit. It also runs at 20 minutes to check N3. | `tests/test_bench.py` (stand-in, 5 s). The numbers themselves go in the results report. | SPEC N1, N3, §8 |
+| P1-R19 | **Metrics.** Per-stem SDR with museval (BSSEval v4, 1 s windows, median over windows, then median over tracks), and SI-SDR (own implementation, whole clip, median over tracks). Silent reference stems are excluded from that stem's median, and the count of excluded tracks is reported. *(Refined in task 13: museval refuses whole-clip silent references or estimates, so those stems skip the museval call. A silent reference scores null; a silent estimate of a real reference scores −∞, which is also left out of the median and counted as excluded. Leaving stems out doesn't change the others' SDR, because v4 SDR projects only onto the stem's own reference; a test checks this.)* | `tests/test_metrics.py`: SI-SDR of a signal against itself is ≥ 100 dB; against itself scaled ×0.5 also ≥ 100 dB (scale-invariant); known values for signal plus noise at a set SNR (±0.1 dB); SDR at a known SNR (±0.3 dB); silent references and estimates. | SPEC §8 |
+| P1-R20 | **`isolate eval`.** `isolate eval --model NAME --preset P [--tracks N] [--track NAME]... [--dataset DIR [--wav]] [--out FILE]` separates the test split and writes a Markdown report (per-stem SDR and SI-SDR, track count, model, preset, versions, date, wall time) plus a JSON file of per-track scores beside it. *(Refined in task 13: MUSDB18 has no guitar or piano reference, so every model stem other than `drums`, `bass` and `vocals` is summed into `other` before scoring. The report says so.)* | `tests/test_eval.py` with the fake dataset and stand-in model. | SPEC §8 |
+| P1-R21 | **Benchmark.** `isolate bench --duration 180 --preset P` separates a synthetic 3-minute stereo signal (speed doesn't depend on content). It reports model-load time, separation time, real-time factor and peak RSS, plus the CPU count, torch threads and the container's memory limit. It also runs at 20 minutes to check N3. *(Changed in task 14: a top-level `isolate bench` command run once per measurement, instead of `isolate eval bench` spawning a subprocess. Each run is its own process, so its peak RSS is the measurement, with less machinery.)* | `tests/test_bench.py` (stand-in, 5 s). The numbers themselves go in the results report. | SPEC N1, N3, §8 |
 | P1-R22 | **Baseline results.** `docs/results/phase-1-baseline.md`: SDR and SI-SDR tables for `htdemucs_6s` with `fast` and `best` on the 50 test tracks, benchmark results for both presets, and the environment (CPU count, memory, torch and demucs versions). The README shows the summary table. | File exists; numbers reproducible with the commands recorded in it. | SPEC §8, §7 exit criteria |
 | P1-R23 | **N1 target.** Based on the measurement, SPEC N1 gets a concrete target for the Fast preset (proposed: the measured time rounded up, plus about 25% headroom, with a stretch target), and N3 records whether 20-minute files stay under 4 GB. The owner approves the numbers in the 1b PR. | SPEC diff in the 1b PR. | SPEC N1, N3, §7 exit criteria |
 | P1-R24 | **Regression check.** An `eval` CI job (on PRs touching `src/isolate/{core,models}/**`, `pyproject.toml` or `poetry.lock`, and on `main`) evaluates 3 fixed test tracks with `fast`. It fails if any core stem's median SDR is more than 0.5 dB below the value stored in `tests/data/regression-baseline.json`. The dataset and weights are cached. | CI job green on the 1b PR. | SPEC §9 |
@@ -154,7 +154,7 @@ default and run in their own CI job (P1-R15). Every other test runs offline.
 | R1 | The safetensors upload on Hugging Face differs from Meta's original weights. | Baseline isn't comparable with published Demucs numbers. | Same author and signatures. Spot-check once: separate one clip with both and compare (≤ 1e-4 max abs difference). Recorded in `docs/models.md`. |
 | R2 | Poetry resolution with the CPU torch source differs between x86-64 (CI) and aarch64 (the container), e.g. the `+cpu` local version. | Lock file works on one platform only. | `poetry check --lock` and installs run on both: the `python` job (x86-64) and the dev container locally (aarch64). Fallback: per-platform markers on the torch dependency. |
 | R3 | CPU separation is slow in Docker (7 GB, 12 CPUs allocated to Docker Desktop here). | The Best preset (shifts 2) takes several times longer than Fast; eval over 50 tracks × 2 presets takes a while. | The eval run is a one-off for the report; CI uses 3 tracks, Fast only. Torch thread count is reported in the benchmark. |
-| R4 | A 20-minute song needs more than 4 GB in memory (P1-D8). | N3 not met for very long files. | Measured in P1-R21. If it fails, streaming becomes a Phase 4 item and SPEC records it. |
+| R4 | A 20-minute song needs more than 4 GB in memory (P1-D8). | N3 not met for very long files. | Measured in P1-R21. If it fails, streaming becomes a Phase 4 item and SPEC records it. **Happened:** 4 GB covers about 6½ minutes; a 20-minute song was OOM-killed at 7.8 GB. Streaming is now in SPEC §7 Phase 4, N3 records the status, and the README warns about long songs. |
 | R5 | Hugging Face or GitHub downloads are flaky in CI. | Red `weights` / `eval` jobs unrelated to the change. | Caches keyed on the registry and dataset; one retry on download. |
 | R6 | museval is old (2023) and pulls pandas/scipy. | Install or compatibility problems on numpy 2. | It's isolated in the `eval` group. Fallback: compute BSSEval v4 SDR with `fast_bss_eval`, documented in the report. |
 | R7 | CI time grows with torch in the `python` job (~200 MB CPU wheel). | Slower PR feedback. | Cached `.venv`; P0's 2-minute target is re-measured and recorded. |
@@ -195,4 +195,20 @@ Filled in at the end of each PR. 1a CI results are from PR 11: `Python` 57 s
 | P1-R15 | `tests/fakes.py`, `tests/tiny_demucs.py`, `tests/conftest.py`, `weights` job in `ci.yml` | Default run skips 3 `weights` tests; `Real-weights tests` job green | Met |
 | P1-R16 | `pyproject.toml` (mypy, coverage), `Mypy` step in `ci.yml` | `Python` job green; coverage 99% | Met |
 | P1-R17 | `docs/models.md`, SPEC M1 and R8, README "Usage" | `Docs` job green | Met |
-| P1-R18 – P1-R25 | | | Not started (PR 1b) |
+| P1-R18 | `src/isolate/eval/musdb.py`, `src/isolate/eval/deps.py`, `eval` Poetry group, FFmpeg in `post-create.sh` and `ci.yml` | `tests/test_musdb.py` (fake WAV dataset); real download in the `Eval` workflow | Met |
+| P1-R19 | `src/isolate/eval/metrics.py` | `tests/test_metrics.py` | Met (refined, see P1-R19) |
+| P1-R20 | `src/isolate/eval/runner.py`, `isolate eval` in `src/isolate/cli.py` | `tests/test_eval.py`; reports in `docs/results/phase-1/` | Met (refined, see P1-R20) |
+| P1-R21 | `src/isolate/eval/bench.py`, `isolate bench` in `cli.py` | `tests/test_bench.py`; benchmark JSON in `docs/results/phase-1/` | Met (changed to `isolate bench`) |
+| P1-R22 | `docs/results/phase-1-baseline.md`, README "Results" | Commands recorded in the report | Met |
+| P1-R23 | SPEC N1 (≤ 60 s, stretch ≤ 30 s), SPEC N3 status, SPEC §7 Phase 4 | Approved by the owner on PR 12 (2026-11-12) | Met |
+| P1-R24 | `tests/test_regression.py`, `tests/data/regression-baseline.json`, `.github/workflows/eval.yml` | `SDR regression check` job green on PR 12 (1 m 28 s) | Met |
+| P1-R25 | `docs/results/listening-test-template.md` | `Docs` job green | Met |
+
+1b CI results are from PR 12: `Python` 1 m 37 s (now also installing FFmpeg
+and the `eval` group, still under R7's 2 minutes), `Real-weights tests` 53 s,
+`SDR regression check` 1 m 28 s, `Dev container` 2 m 26 s. The regression
+baseline was recorded on aarch64 (the container) and passes on CI's x86-64.
+
+**Exit criteria:** baseline results table ✅ (`docs/results/phase-1-baseline.md`);
+N1 measured ✅ (45 s) and target set ✅ (≤ 60 s, stretch ≤ 30 s, approved
+2026-11-12).
