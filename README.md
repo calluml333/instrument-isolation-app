@@ -58,6 +58,10 @@ ruff format --check .
 ```
 
 ```bash
+mypy
+```
+
+```bash
 pytest
 ```
 
