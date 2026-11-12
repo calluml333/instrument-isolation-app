@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Implemented: 1a (PR 11), 1b (PR 12); N1 target awaiting approval |
+| **Status** | Implemented: 1a (PR 11), 1b (PR 12) |
 | **Phase** | 1 (docs/SPEC.md §7) |
 | **Owner** | Callum Little |
 | **Last updated** | 2026-11-12 |
@@ -200,7 +200,7 @@ Filled in at the end of each PR. 1a CI results are from PR 11: `Python` 57 s
 | P1-R20 | `src/isolate/eval/runner.py`, `isolate eval` in `src/isolate/cli.py` | `tests/test_eval.py`; reports in `docs/results/phase-1/` | Met (refined, see P1-R20) |
 | P1-R21 | `src/isolate/eval/bench.py`, `isolate bench` in `cli.py` | `tests/test_bench.py`; benchmark JSON in `docs/results/phase-1/` | Met (changed to `isolate bench`) |
 | P1-R22 | `docs/results/phase-1-baseline.md`, README "Results" | Commands recorded in the report | Met |
-| P1-R23 | SPEC N1 (≤ 60 s, stretch ≤ 30 s), SPEC N3 status, SPEC §7 Phase 4 | Owner approval in PR 12 | Proposed, awaiting approval |
+| P1-R23 | SPEC N1 (≤ 60 s, stretch ≤ 30 s), SPEC N3 status, SPEC §7 Phase 4 | Approved by the owner on PR 12 (2026-11-12) | Met |
 | P1-R24 | `tests/test_regression.py`, `tests/data/regression-baseline.json`, `.github/workflows/eval.yml` | `SDR regression check` job green on PR 12 (1 m 28 s) | Met |
 | P1-R25 | `docs/results/listening-test-template.md` | `Docs` job green | Met |
 
@@ -210,5 +210,5 @@ and the `eval` group, still under R7's 2 minutes), `Real-weights tests` 53 s,
 baseline was recorded on aarch64 (the container) and passes on CI's x86-64.
 
 **Exit criteria:** baseline results table ✅ (`docs/results/phase-1-baseline.md`);
-N1 measured ✅ (45 s) and target proposed (≤ 60 s), final once approved in
-PR 12.
+N1 measured ✅ (45 s) and target set ✅ (≤ 60 s, stretch ≤ 30 s, approved
+2026-11-12).

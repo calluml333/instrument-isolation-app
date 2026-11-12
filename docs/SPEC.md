@@ -371,8 +371,7 @@ for later if Gradio's components become limiting (§11).
   the Fast preset, on CPU in the dev container on the M4 Pro. Stretch:
   ≤ 30 s. Set from the Phase 1 baseline, which measured 45 s
   (`docs/results/phase-1-baseline.md`); the original ≤ 60 s assumed the GPU
-  (MPS), which Docker can't use (§4.4). *Proposed in Phase 1; approved with
-  the 1b PR.*
+  (MPS), which Docker can't use (§4.4).
 - N2. **Demo speed:** a 30-second clip separates in **≤ 90 s** on the Spaces
   free CPU tier.
 - N3. **Memory:** peak RAM ≤ 4 GB during separation, whatever the song length
@@ -496,6 +495,9 @@ runs.
 - **2026-10-22 — Model licences:** the Demucs weights are research-use only
   (`docs/models.md`). Accepted as-is, because this is a non-commercial
   learning/portfolio piece.
+- **2026-11-12 — N1 target:** ≤ 60 s for a 3-minute song with the Fast
+  preset on CPU in the dev container (stretch ≤ 30 s), from the Phase 1
+  baseline of 45 s. Approved by the owner.
 
 ### Open
 
