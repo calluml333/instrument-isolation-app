@@ -63,7 +63,7 @@ module = ["tests.*"]
 disable_error_code = ["no-untyped-def"]
 
 [[tool.mypy.overrides]]
-module = ["soundfile"]
+module = ["soundfile", "soxr"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
