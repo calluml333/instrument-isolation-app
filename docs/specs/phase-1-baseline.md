@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| **Status** | Approved 2026-11-12; 1a in progress |
+| **Status** | Approved 2026-11-12; 1a implemented (PR 11), 1b next |
 | **Phase** | 1 (docs/SPEC.md §7) |
 | **Owner** | Callum Little |
 | **Last updated** | 2026-11-12 |
@@ -172,8 +172,27 @@ None blocking. These are judgement calls you may want to override:
 
 ## 7. Traceability
 
-Filled in at the end of each PR.
+Filled in at the end of each PR. 1a CI results are from PR 11: `Python` 57 s
+(cold cache, so R7's 2-minute target holds), `Real-weights tests` 1 m 13 s,
+`Dev container` 1 m 28 s.
 
 | ID | Implementation | Verification | Status |
 |---|---|---|---|
-| P1-R1 – P1-R25 | | | Not started |
+| P1-R1 | `src/isolate/models/base.py` | `tests/contract.py`, `tests/test_backends.py`, `tests/test_demucs_backend.py` (tiny model offline; `htdemucs_6s` with weights) | Met |
+| P1-R2 | `src/isolate/models/registry.py` | `tests/test_registry.py` | Met |
+| P1-R3 | `src/isolate/models/weights.py`, `src/isolate/models/loader.py` | `tests/test_weights.py` (`file://` URLs) | Met |
+| P1-R4 | `src/isolate/models/demucs.py` | `test_htdemucs_6s_meets_the_contract`, `test_htdemucs_6s_separates_fixture` (`weights` CI job) | Met |
+| P1-R5 | `src/isolate/core/audio.py` | `tests/test_audio.py` | Met |
+| P1-R6 | `src/isolate/core/engine.py` (`_resample`, `_fit_length`, channel handling) | `test_resampling_and_channels_match_input`, `test_mono_input_gives_mono_stems_that_sum_to_it` | Met (acceptance corrected, see P1-R6) |
+| P1-R7 | `engine._ChunkRunner._overlap_add` | `test_overlap_add_identity_round_trip`, `test_chunks_never_exceed_one_segment` | Met |
+| P1-R8 | `engine._ChunkRunner.run` | `test_shifts_identity_round_trip`, `test_shifts_deterministic`, `test_shifts_average_several_passes` | Met |
+| P1-R9 | `engine.PRESETS` | `test_presets` | Met |
+| P1-R10 | `src/isolate/core/device.py` | `tests/test_device.py` | Met |
+| P1-R11 | `engine.CancelToken`, progress in `_overlap_add` | `test_progress_rises_to_exactly_one`, `test_cancel_stops_between_chunks` | Met |
+| P1-R12 | `engine.separate` (residual step) | `test_residual_*` | Met |
+| P1-R13 | `src/isolate/cli.py` (`separate`) | `tests/test_cli_separate.py`; `test_end_to_end_with_htdemucs_6s` (`weights`) | Met |
+| P1-R14 | `src/isolate/cli.py` (`models`) | `tests/test_cli_models.py` | Met |
+| P1-R15 | `tests/fakes.py`, `tests/tiny_demucs.py`, `tests/conftest.py`, `weights` job in `ci.yml` | Default run skips 3 `weights` tests; `Real-weights tests` job green | Met |
+| P1-R16 | `pyproject.toml` (mypy, coverage), `Mypy` step in `ci.yml` | `Python` job green; coverage 99% | Met |
+| P1-R17 | `docs/models.md`, SPEC M1 and R8, README "Usage" | `Docs` job green | Met |
+| P1-R18 – P1-R25 | | | Not started (PR 1b) |
