@@ -137,6 +137,24 @@ def build_parser() -> argparse.ArgumentParser:
         metavar="FILE",
         help="write the Markdown report here and per-track JSON scores beside it",
     )
+
+    be = commands.add_parser(
+        "bench",
+        help="time a separation and measure its peak memory",
+        description="Separate a synthetic song and report speed and peak memory. "
+        "Run once per measurement: peak memory covers this whole process.",
+    )
+    be.add_argument("--model", default=DEFAULT_MODEL, help="default: %(default)s")
+    be.add_argument("--preset", choices=sorted(PRESETS), default="fast")
+    be.add_argument("--device", choices=DEVICES, default="auto")
+    be.add_argument(
+        "--duration",
+        type=float,
+        default=180.0,
+        metavar="SECONDS",
+        help="song length (default: %(default)s, a 3-minute song)",
+    )
+    be.add_argument("--out", type=Path, metavar="FILE", help="also write JSON here")
     return parser
 
 
@@ -154,6 +172,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             return _separate(args)
         if args.command == "eval":
             return _eval(args)
+        if args.command == "bench":
+            return _bench(args)
         if args.models_command == "list":
             return _models_list()
         return _models_download(args.name)
@@ -312,4 +332,21 @@ def _eval(args: argparse.Namespace) -> int:
         for path in report.write(args.out):
             print(path, file=sys.stderr)
     print(report.to_markdown())
+    return 0
+
+
+def _bench(args: argparse.Namespace) -> int:
+    import json
+    from dataclasses import asdict
+
+    from isolate.eval.bench import run_bench
+
+    # Fetch the weights first, so download time isn't counted as load time.
+    ensure_weights(get_model(args.model), _download_bar(args.model))
+    result = run_bench(args.model, args.preset, args.duration, args.device)
+    if args.out is not None:
+        data = {**asdict(result), "real_time_factor": result.real_time_factor}
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(json.dumps(data, indent=2) + "\n")
+    print(result.to_markdown())
     return 0
