@@ -63,12 +63,33 @@ as authoritative, not the tags.
 
 ## Checkpoints
 
-All weights are downloaded by `demucs` from
+### What the project downloads
+
+`isolate` downloads **safetensors** copies of the weights from the author's
+Hugging Face repos, pinned to a commit, and checks each file's full SHA-256
+(from the Hugging Face file metadata) before using it (SPEC R8, Phase 1
+P1-D3). Unlike the original `.th` files, which are Python pickles, safetensors
+can't run code when loaded. The pins live in the model registry
+(`src/isolate/models/registry.py`).
+
+| Model | Hugging Face repo | Pinned commit | File | SHA-256 | Size |
+|---|---|---|---|---|---|
+| `htdemucs_6s` | [adefossez/HTDemucs-6s](https://huggingface.co/adefossez/HTDemucs-6s) | `3c5ee475be622df764938de97e4281a7b07ffa58` | `5c90dfd2.safetensors` | `d2a1745f0744721f6b8ca5bf469b67c651ea5ed1b52998cab033b2158609d411` | 55 MB |
+| `htdemucs` | [adefossez/HTDemucs](https://huggingface.co/adefossez/HTDemucs) | `cbc8a9b1a87023b7fd74e7b3412e6321c0eab003` | `955717e8.safetensors` | `d9fa14133cfcc034a6758923bb3a8ca9f8dfd0b582134643bbf83f72c17576dd` | 84 MB |
+| `htdemucs_ft` | [adefossez/HTDemucs-ft](https://huggingface.co/adefossez/HTDemucs-ft) | `d74ac89c3a1e874fc78f152555cf4d8533f06cd4` | `f7e0c4bc`, `d12395a8`, `92cfc3b6`, `04573f0d` `.safetensors` | see the repo's file list | 4 × 84 MB |
+
+Only `htdemucs_6s` is in the registry so far (Phase 1). The other two are
+added in Phase 3.
+
+### Original checkpoints
+
+Meta's original `.th` checkpoints are hosted at
 `https://dl.fbaipublicfiles.com/demucs/hybrid_transformer/`, as listed in
 the package's
 [`remote/files.txt`](https://github.com/facebookresearch/demucs/blob/main/demucs/remote/files.txt).
 The hash suffix in each file name is the start of the file's SHA-256, which
-`demucs` checks on download (via `torch.hub` with `check_hash=True`).
+`demucs` checks on download (via `torch.hub` with `check_hash=True`). They
+have the same signatures as the safetensors files above.
 
 | Model | Bag definition | Checkpoint files | Size |
 |---|---|---|---|
