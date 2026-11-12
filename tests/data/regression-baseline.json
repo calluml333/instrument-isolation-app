@@ -1,0 +1,17 @@
+{
+  "model": "htdemucs_6s",
+  "preset": "fast",
+  "tolerance_db": 0.5,
+  "tracks": [
+    "AM Contra - Heart Peripheral",
+    "Al James - Schoolboy Facination",
+    "Angels In Amplifiers - I'm Alright"
+  ],
+  "sdr": {
+    "drums": 6.68,
+    "bass": 10.28,
+    "other": 5.13,
+    "vocals": 10.69
+  },
+  "source": "docs/results/phase-1/eval-htdemucs_6s-fast.json (dev container, aarch64)"
+}

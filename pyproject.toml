@@ -86,6 +86,7 @@ addopts = [
 filterwarnings = ["error"]
 markers = [
     "weights: uses the real model weights (downloads them); run with --run-weights",
+    "regression: scores real weights on MUSDB18 tracks; run with --run-weights",
 ]
 
 [tool.coverage.report]
