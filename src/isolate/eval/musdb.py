@@ -17,6 +17,10 @@ from isolate.models.weights import cache_root
 SOURCES = ("drums", "bass", "other", "vocals")
 
 
+class UnknownTrackError(ValueError):
+    """A requested track isn't in the test split."""
+
+
 @dataclass(frozen=True)
 class Track:
     name: str
@@ -53,7 +57,9 @@ def iter_tracks(
         by_name = {track.name: track for track in tracks}
         missing = sorted(set(names) - set(by_name))
         if missing:
-            raise ValueError(f"No MUSDB test track(s) named {', '.join(missing)}")
+            raise UnknownTrackError(
+                f"No MUSDB test track(s) named {', '.join(missing)}"
+            )
         tracks = [by_name[name] for name in names]
     for track in tracks[:limit]:
         rate = int(track.rate)

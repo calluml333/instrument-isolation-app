@@ -60,3 +60,36 @@ def test_sdr_matches_a_known_snr(snr):
 def test_is_silent():
     assert is_silent(Audio(np.zeros((2, 100), dtype=np.float32), RATE))
     assert not is_silent(Audio(noise(100), RATE))
+
+
+def test_sdr_of_a_stem_does_not_depend_on_the_others():
+    refs = {"a": Audio(noise(seed=0), RATE), "b": Audio(noise(seed=5), RATE)}
+    ests = {
+        name: Audio(with_snr(ref.samples, 12, seed=9), RATE)
+        for name, ref in refs.items()
+    }
+
+    together = sdr(refs, ests)
+    alone = sdr({"a": refs["a"]}, {"a": ests["a"]})
+
+    assert alone["a"] == pytest.approx(together["a"], abs=1e-6)
+
+
+def test_sdr_handles_silent_references_and_estimates():
+    silent = Audio(np.zeros((2, 3 * RATE), dtype=np.float32), RATE)
+    refs = {
+        "a": Audio(noise(seed=0), RATE),
+        "b": silent,
+        "c": Audio(noise(seed=2), RATE),
+    }
+    ests = {
+        "a": Audio(with_snr(refs["a"].samples, 10), RATE),
+        "b": refs["a"],
+        "c": silent,
+    }
+
+    scores = sdr(refs, ests)
+
+    assert scores["a"] == pytest.approx(10, abs=0.3)
+    assert scores["b"] is None
+    assert scores["c"] == -math.inf

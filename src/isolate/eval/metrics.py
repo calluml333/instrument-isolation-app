@@ -29,14 +29,32 @@ def si_sdr(reference: Float32Array, estimate: Float32Array) -> float:
     return 10 * math.log10(float(np.dot(target, target)) / noise_energy)
 
 
-def sdr(references: dict[str, Audio], estimates: dict[str, Audio]) -> dict[str, float]:
-    """BSSEval v4 SDR per stem: 1 s windows, median over windows (museval)."""
+def sdr(
+    references: dict[str, Audio], estimates: dict[str, Audio]
+) -> dict[str, float | None]:
+    """BSSEval v4 SDR per stem: 1 s windows, median over windows (museval).
+
+    museval refuses whole-clip silent references or estimates, which real clips
+    have (an instrumental has silent vocals). A silent reference scores None
+    (meaningless); a silent estimate of a real reference scores -inf. Leaving
+    those stems out of the joint call doesn't change the others' SDR: in
+    BSSEval v4, a stem's SDR only projects onto its own reference.
+    """
     museval = require("museval")
-    stems = list(references)
-    rate = references[stems[0]].sample_rate
-    refs = np.stack([references[stem].samples.T for stem in stems])
-    ests = np.stack([estimates[stem].samples.T for stem in stems])
-    scores, _isr, _sir, _sar = museval.evaluate(refs, ests, win=rate, hop=rate)
-    return {
-        stem: float(np.nanmedian(scores[index])) for index, stem in enumerate(stems)
-    }
+    result: dict[str, float | None] = {}
+    scored = []
+    for stem, reference in references.items():
+        if is_silent(reference):
+            result[stem] = None
+        elif not estimates[stem].samples.any():
+            result[stem] = -math.inf
+        else:
+            scored.append(stem)
+    if scored:
+        rate = references[scored[0]].sample_rate
+        refs = np.stack([references[stem].samples.T for stem in scored])
+        ests = np.stack([estimates[stem].samples.T for stem in scored])
+        scores, _isr, _sir, _sar = museval.evaluate(refs, ests, win=rate, hop=rate)
+        for index, stem in enumerate(scored):
+            result[stem] = float(np.nanmedian(scores[index]))
+    return {stem: result[stem] for stem in references}

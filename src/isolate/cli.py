@@ -21,6 +21,8 @@ from isolate.core.audio import (
 )
 from isolate.core.device import DEVICES, DeviceUnavailableError
 from isolate.core.engine import PRESETS, Options, Progress, separate
+from isolate.eval.deps import EvalDependencyError
+from isolate.eval.musdb import UnknownTrackError
 from isolate.models.loader import load_backend
 from isolate.models.registry import DEFAULT_MODEL, MODELS, UnknownModelError, get_model
 from isolate.models.weights import (
@@ -45,8 +47,10 @@ _EXPECTED_ERRORS = (
     ChecksumError,
     DeviceUnavailableError,
     DownloadError,
+    EvalDependencyError,
     UnknownModelError,
     UnknownStemError,
+    UnknownTrackError,
 )
 
 
@@ -100,6 +104,39 @@ def build_parser() -> argparse.ArgumentParser:
     model_commands.add_parser("list", help="list the available models")
     download = model_commands.add_parser("download", help="fetch a model's weights")
     download.add_argument("name", metavar="NAME")
+
+    ev = commands.add_parser(
+        "eval",
+        help="score a model on the MUSDB18 sample set",
+        description="Separate the MUSDB18 7-second test split and score it "
+        "(SDR and SI-SDR, median per stem).",
+    )
+    ev.add_argument("--model", default=DEFAULT_MODEL, help="default: %(default)s")
+    ev.add_argument("--preset", choices=sorted(PRESETS), default="fast")
+    ev.add_argument("--device", choices=DEVICES, default="auto")
+    ev.add_argument("--tracks", type=int, metavar="N", help="only the first N tracks")
+    ev.add_argument(
+        "--track",
+        action="append",
+        dest="names",
+        metavar="NAME",
+        help="only this track (repeatable)",
+    )
+    ev.add_argument(
+        "--dataset",
+        type=Path,
+        metavar="DIR",
+        help="a MUSDB-layout folder (default: download the sample set to the cache)",
+    )
+    ev.add_argument(
+        "--wav", action="store_true", help="DIR holds WAV stems, not .stem.mp4 files"
+    )
+    ev.add_argument(
+        "--out",
+        type=Path,
+        metavar="FILE",
+        help="write the Markdown report here and per-track JSON scores beside it",
+    )
     return parser
 
 
@@ -115,6 +152,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         if args.command == "separate":
             return _separate(args)
+        if args.command == "eval":
+            return _eval(args)
         if args.models_command == "list":
             return _models_list()
         return _models_download(args.name)
@@ -240,4 +279,37 @@ def _models_list() -> int:
 def _models_download(name: str) -> int:
     spec = get_model(name)
     print(ensure_weights(spec, _download_bar(name)))
+    return 0
+
+
+def _eval(args: argparse.Namespace) -> int:
+    from isolate.eval.musdb import iter_tracks
+    from isolate.eval.runner import TrackResult, evaluate
+
+    tracks = iter_tracks(
+        args.dataset, names=args.names, limit=args.tracks, is_wav=args.wav
+    )
+    backend = load_backend(args.model, args.device, _download_bar(args.model))
+
+    def show(result: TrackResult) -> None:
+        scores = "  ".join(
+            f"{stem} {value:5.2f}" if value is not None else f"{stem}   n/a"
+            for stem, value in result.sdr.items()
+        )
+        print(f"{result.name[:40]:40}  SDR  {scores}", file=sys.stderr)
+
+    report = evaluate(
+        tracks,
+        backend,
+        model=args.model,
+        preset=args.preset,
+        options=PRESETS[args.preset],
+        on_track=show,
+    )
+    if not report.tracks:
+        raise UnknownTrackError("No tracks were evaluated")
+    if args.out is not None:
+        for path in report.write(args.out):
+            print(path, file=sys.stderr)
+    print(report.to_markdown())
     return 0

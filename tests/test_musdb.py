@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from isolate.eval.deps import EvalDependencyError, require
-from isolate.eval.musdb import SOURCES, dataset_dir, iter_tracks
+from isolate.eval.musdb import SOURCES, UnknownTrackError, dataset_dir, iter_tracks
 from tests.fake_musdb import RATE, write_fake_musdb
 
 
@@ -32,7 +32,7 @@ def test_limit_and_names(fake_root):
 
 
 def test_unknown_track_name(fake_root):
-    with pytest.raises(ValueError, match="No MUSDB test track"):
+    with pytest.raises(UnknownTrackError, match="No MUSDB test track"):
         list(iter_tracks(fake_root, is_wav=True, names=["Nobody - Nothing"]))
 
 
